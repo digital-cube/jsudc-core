@@ -14,8 +14,8 @@ in Angular alike.
 
 ```sh
 npm install @jsudc/core
-# before the npm release, from a tag:
-npm install github:digital-cube/jsudc-core#v0.1.0
+# or straight from a GitHub tag:
+npm install github:digital-cube/jsudc-core#v0.1.1
 ```
 
 Two entry points:
