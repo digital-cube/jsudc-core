@@ -1,5 +1,7 @@
 # @jsudc/core
 
+[![npm](https://img.shields.io/npm/v/@jsudc/core)](https://www.npmjs.com/package/@jsudc/core)
+
 The UDC (Universal Data Collection) protocol in TypeScript. One package holds
 everything that crosses the wire between a UDC server and its clients, as Zod
 schemas with inferred types: the message envelope, the filter DSL and an
@@ -15,7 +17,7 @@ in Angular alike.
 ```sh
 npm install @jsudc/core
 # or straight from a GitHub tag:
-npm install github:digital-cube/jsudc-core#v0.1.1
+npm install github:digital-cube/jsudc-core#v0.2.0
 ```
 
 Two entry points:
