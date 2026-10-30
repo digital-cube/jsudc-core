@@ -7,6 +7,12 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-30
+
+No changes; released in lockstep with `@jsudc/react` 0.2.0, whose breaking
+changes move the shared version line to 0.2. The code and the API are those of
+0.1.1.
+
 ## [0.1.1] - 2026-10-29
 
 First release on npmjs.org. No change to the code or the API.
@@ -38,6 +44,7 @@ First tagged version, installed from the GitHub tag.
 - `@jsudc/core/client`: `UdcClient`, the envelope RPC over `fetch`, and
   `UdcError`.
 
-[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/digital-cube/jsudc-core/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/digital-cube/jsudc-core/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/digital-cube/jsudc-core/releases/tag/v0.1.0
