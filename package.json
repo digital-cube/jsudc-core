@@ -1,6 +1,6 @@
 {
   "name": "@jsudc/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "type": "module",
   "description": "The UDC protocol in TypeScript: envelopes, filter DSL and evaluator, schema, view and source types, action payloads, row validation and the HTTP transport client.",
@@ -8,6 +8,8 @@
     "udc",
     "jsudc",
     "universal-data-collection",
+    "universal-data-collections",
+    "data-grid",
     "protocol",
     "zod",
     "filter-dsl",
@@ -15,9 +17,14 @@
   ],
   "license": "MIT",
   "author": "DigitalCube",
-  "repository": "github:digital-cube/jsudc-core",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/digital-cube/jsudc-core.git"
+  },
   "homepage": "https://github.com/digital-cube/jsudc-core#readme",
-  "bugs": "https://github.com/digital-cube/jsudc-core/issues",
+  "bugs": {
+    "url": "https://github.com/digital-cube/jsudc-core/issues"
+  },
   "engines": {
     "node": ">=24"
   },
@@ -40,6 +47,9 @@
     "README.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepare": "npm run build",

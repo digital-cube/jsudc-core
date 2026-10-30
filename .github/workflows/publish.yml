@@ -1,0 +1,32 @@
+name: Publish
+
+# A pushed tag v* publishes that version to npmjs.org with provenance. npm trusts this
+# workflow through OIDC (trusted publishing, configured on the package's npm settings
+# page), so there is no NPM_TOKEN secret: the id-token permission is the credential.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing (OIDC) needs npm >= 11.5.
+      - run: npm install -g npm@latest
+      # The tag and package.json must name the same version.
+      - name: Tag matches package.json
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+      # `npm ci` also runs `prepare`, which builds dist.
+      - run: npm ci
+      - run: npm test
+      - run: npm publish --provenance --access public
