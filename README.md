@@ -121,6 +121,55 @@ and `SourceConfigSchema` parse the `schema.json`, `view.yaml` and `source.yaml`
 files a collection is described by. `isValidFieldName` / `FIELD_NAME_RE` hold
 the field-name rule (`^[a-z][a-z0-9_]{0,62}$`).
 
+## Lookups and drill-down
+
+A field of type `lookup` stores the **key** of a row of another collection,
+`lookup_array` a list of keys. The field says where the key points:
+
+```json
+"board_id":  { "type": "lookup", "required": true, "index": true,
+               "lookup": { "collection": "boards", "label_field": "name" } },
+"assignees": { "type": "lookup_array",
+               "lookup": { "collection": "org", "label_field": "name", "extra_fields": ["title"] } }
+```
+
+`LookupDefSchema` is `{ collection, key_field?, label_field, extra_fields? }`.
+Without `key_field` the key is the target's row id (`__meta.id`). A key is a
+string or an integer; `validateRow` refuses anything else. The flat udc-py
+spelling (`"ref": "boards", "label_field": "name"`) parses too and comes out
+nested, so a dclabs schema needs no edit; a `ref` without `label_field` (a
+dc-lookups path such as `Books.Genre`) is left as it is.
+
+Nothing in the protocol changes: the key travels as it is, a filter compares
+the key (`LOOKUP_FILTER_OPS`: `eq neq in not_in is_null is_not_null`; on
+`lookup_array` `in` / `not_in` mean "any key in the list" / "none"), and a
+client resolves the labels with one `list` over the target
+(`lookupKeysFilter(lookup, keys)`). A condition on `id`, in a collection whose
+schema has no live `id` field, means the row id (`isRowIdField`), so a lookup by
+id needs no stored copy of it.
+
+Core checks the shape. Whether `collection`, `label_field`, `key_field` and
+`extra_fields` exist needs the other collection's schema, so the server checks
+that when it loads its registry: `lookupProblems(collection, schema, schemaOf)`
+returns one message per problem, `<collection>.<field>: lookup target <x> has no
+field <y>`.
+
+**Drill-down.** `view.yaml` may say where a click on a row goes:
+
+```yaml
+row_link:
+  collection: tickets
+  filter: { field: board_id, value_from: id }
+```
+
+That opens `tickets` filtered by `board_id eq <the row's id>`
+(`rowLinkCondition(row, link)`). `value_from` is a field of this collection, or
+`id` for the row id. `rowLinkProblems` checks both ends. No lookup field is
+needed: any two collections that share a value can be linked.
+
+`relation` stays reserved for level 2 (a server-side JOIN, `expand`, dotted
+paths in filter and sort); a schema that has one keeps parsing.
+
 ## validateRow
 
 `validateRow(schema, row, { mode })` checks a row (`mode: "insert"`) or a

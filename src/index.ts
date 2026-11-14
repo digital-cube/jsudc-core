@@ -6,6 +6,7 @@ export * from "./evaluate.js";
 export * from "./filter.js";
 export * from "./filterable.js";
 export * from "./kanban.js";
+export * from "./lookup.js";
 export * from "./map.js";
 export * from "./menu.js";
 export * from "./order.js";

@@ -4,6 +4,7 @@ import { ChartOptionsSchema } from "./chart.js";
 import { FilterNodeSchema, FilterOpSchema } from "./filter.js";
 import { KanbanOptionsSchema } from "./kanban.js";
 import { MapOptionsSchema } from "./map.js";
+import { FieldNameSchema } from "./schema.js";
 import { TreeOptionsSchema } from "./tree.js";
 
 // Every block is loose: dclabs views carry renderer-specific option blocks
@@ -173,6 +174,24 @@ export const FolderOptionsSchema = z.looseObject({
 
 export type FolderOptions = z.output<typeof FolderOptionsSchema>;
 
+/**
+ * Drill-down: a click on a row opens another collection filtered by a value
+ * of that row, `<collection> where <filter.field> eq <row[value_from]>`.
+ * `value_from` names a field of this collection, or `id` for the row id
+ * (`__meta.id`, which is not among the fields). The server checks the names
+ * when it loads the registry (`rowLinkProblems`). Any two collections that
+ * share a value can be linked; no lookup field is needed.
+ */
+export const RowLinkSchema = z.looseObject({
+  collection: z.string().min(1),
+  filter: z.looseObject({
+    field: FieldNameSchema,
+    value_from: z.string().min(1),
+  }),
+});
+
+export type RowLink = z.infer<typeof RowLinkSchema>;
+
 // Phase 2: declared so dclabs views parse; the phase-1 renderers ignore them.
 
 export const ActionDefSchema = z.looseObject({
@@ -218,6 +237,7 @@ export const ViewConfigSchema = z
     chart_options: ChartOptionsSchema.optional(),
     folder_options: FolderOptionsSchema.optional(),
     row_color: RowColorConfigSchema.optional(),
+    row_link: RowLinkSchema.optional(),
 
     row_actions: z.array(z.string()).default([]),
     row_action_defs: z.array(ActionDefSchema).optional(),

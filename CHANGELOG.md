@@ -7,6 +7,28 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Lookups, level 1: `LookupDefSchema` (`{ collection, key_field?, label_field,
+  extra_fields? }`) as `FieldDef.lookup` of a `lookup` / `lookup_array` field;
+  `LOOKUP_FIELD_TYPES`, `isLookupType`, `STORABLE_FIELD_TYPES`, `isStorableType`.
+- The flat udc-py form (`ref` + `label_field`) of a lookup is normalised to
+  `lookup: {collection, label_field}`.
+- `lookupProblems` / `lookupFieldProblems` and `rowLinkProblems`, the
+  cross-collection checks a server runs when it loads its registry.
+- `ViewConfig.row_link` (`RowLinkSchema`): drill-down from a row to another
+  collection filtered by one of its values (`value_from`, or `id`).
+- `lookupOf`, `lookupKeyField`, `lookupKeyOf`, `lookupKeysFilter`,
+  `rowLinkValue`, `rowLinkCondition`, `isRowIdField`, `ROW_ID`, `isLookupKey`.
+- `LOOKUP_FILTER_OPS`, `LOOKUP_ARRAY_FILTER_OPS`.
+
+### Changed
+
+- A `lookup` value is a key: a string or an integer (was: a string). A
+  `lookup_array` value is a list of keys (was: a list of strings).
+- `filterableForType("lookup_array")` is `in not_in is_null is_not_null`,
+  default `in` (was `contains is_null is_not_null`).
+
 ## [0.2.0] - 2026-10-30
 
 No changes; released in lockstep with `@jsudc/react` 0.2.0, whose breaking

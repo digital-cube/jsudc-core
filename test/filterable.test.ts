@@ -32,7 +32,7 @@ const EXPECTED: Record<FieldType, [string[], string, string]> = {
   lookup: [CHOICE, "in", "lookup"],
   relation: [CHOICE, "eq", "text"],
   string_array: [["contains", "in", "not_in", ...NULLS], "contains", "text"],
-  lookup_array: [["contains", ...NULLS], "contains", "lookup"],
+  lookup_array: [["in", "not_in", ...NULLS], "in", "lookup"],
 };
 
 describe("filterableForType", () => {

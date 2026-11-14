@@ -54,6 +54,51 @@ export function isPhase1Type(type: unknown): type is Phase1FieldType {
   return (PHASE1_FIELD_TYPES as readonly unknown[]).includes(type);
 }
 
+/**
+ * The types whose value is the key of a row in another collection (level 1
+ * of relations: the server stores, sorts and filters the key, the client
+ * resolves the label). `lookup` holds one key, `lookup_array` a list of keys.
+ */
+export const LOOKUP_FIELD_TYPES = [
+  "lookup",
+  "lookup_array",
+] as const satisfies readonly FieldType[];
+
+export type LookupFieldType = (typeof LOOKUP_FIELD_TYPES)[number];
+
+export function isLookupType(type: unknown): type is LookupFieldType {
+  return (LOOKUP_FIELD_TYPES as readonly unknown[]).includes(type);
+}
+
+/** The types a server stores and `schema.add_field` accepts: phase 1 plus the lookups. */
+export const STORABLE_FIELD_TYPES = [
+  ...PHASE1_FIELD_TYPES,
+  ...LOOKUP_FIELD_TYPES,
+] as const satisfies readonly FieldType[];
+
+export type StorableFieldType = (typeof STORABLE_FIELD_TYPES)[number];
+
+export function isStorableType(type: unknown): type is StorableFieldType {
+  return (STORABLE_FIELD_TYPES as readonly unknown[]).includes(type);
+}
+
+/**
+ * Where a `lookup` / `lookup_array` field points. The field stores the value
+ * of `key_field` of a row of `collection` (the row id, `__meta.id`, when
+ * `key_field` is omitted); a client shows that row's `label_field`, and may
+ * fetch `extra_fields` with it (a tooltip, a subtitle). The shape is checked
+ * here; that the names exist in the target is checked by the server when it
+ * loads its registry (`lookupProblems`), the only place both schemas meet.
+ */
+export const LookupDefSchema = z.looseObject({
+  collection: z.string().min(1),
+  key_field: FieldNameSchema.optional(),
+  label_field: FieldNameSchema,
+  extra_fields: z.array(FieldNameSchema).optional(),
+});
+
+export type LookupDef = z.infer<typeof LookupDefSchema>;
+
 // Loose: udc-py field defs carry type-specific extras (rating_type, on_unknown, …).
 export const FieldDefSchema = z
   .looseObject({
@@ -68,6 +113,7 @@ export const FieldDefSchema = z
     max: z.number().optional(),
     ref: z.string().optional(),
     label_field: z.string().optional(),
+    lookup: LookupDefSchema.optional(),
   })
   .superRefine((def, ctx) => {
     if (def.type === "enum" && (!def.values || def.values.length === 0)) {
@@ -80,7 +126,30 @@ export const FieldDefSchema = z
     if (def.min !== undefined && def.max !== undefined && def.min > def.max) {
       ctx.addIssue({ code: "custom", path: ["min"], message: "min is greater than max" });
     }
-  });
+    if (def.lookup && !isLookupType(def.type)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["lookup"],
+        message: `lookup is only for lookup and lookup_array fields, not ${def.type}`,
+      });
+    }
+  })
+  .transform(normaliseLookup);
+
+/**
+ * The udc-py spelling of a lookup is flat (`"ref": "boards", "label_field":
+ * "name"`); it becomes the nested `lookup: {collection, label_field}`, so a
+ * dclabs schema keeps parsing and everything after the parse (and `describe`)
+ * sees one form. A flat lookup without `label_field` (a dc-lookups path such
+ * as `"ref": "Books.Genre"`) is left as it is: it names no collection.
+ */
+function normaliseLookup<
+  D extends { type: FieldType; ref?: string; label_field?: string; lookup?: LookupDef },
+>(def: D): D {
+  if (!isLookupType(def.type) || def.lookup || !def.ref || !def.label_field) return def;
+  const { ref, label_field, ...rest } = def;
+  return { ...rest, lookup: { collection: ref, label_field } } as D;
+}
 
 export type FieldDef = z.infer<typeof FieldDefSchema>;
 

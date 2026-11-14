@@ -45,6 +45,20 @@ const CHOICE_OPS = [
 
 const NULL_OPS = ["is_null", "is_not_null"] as const satisfies readonly FilterOp[];
 
+/**
+ * What a filter may do with a lookup key: compare it, look it up in a list,
+ * test it for null. Nothing that reads the key as text (`contains`) or as an
+ * order (`gt`): the key is an identity, not a value. On `lookup_array`, `in`
+ * holds when any key of the row is in the list and `not_in` when none is.
+ * The server refuses any other op on these types (`unsupported_op`).
+ */
+export const LOOKUP_FILTER_OPS = CHOICE_OPS;
+export const LOOKUP_ARRAY_FILTER_OPS = [
+  "in",
+  "not_in",
+  ...NULL_OPS,
+] as const satisfies readonly FilterOp[];
+
 const BY_TYPE: Record<FieldType, FilterableDefaults> = {
   string: { ops: STRING_OPS, default_op: "contains", widget: "text" },
   text: { ops: STRING_OPS, default_op: "contains", widget: "text" },
@@ -65,7 +79,7 @@ const BY_TYPE: Record<FieldType, FilterableDefaults> = {
     default_op: "contains",
     widget: "text",
   },
-  lookup_array: { ops: ["contains", ...NULL_OPS], default_op: "contains", widget: "lookup" },
+  lookup_array: { ops: LOOKUP_ARRAY_FILTER_OPS, default_op: "in", widget: "lookup" },
 };
 
 /** The filter ops a field of this type allows, its default op and its builder widget. */
