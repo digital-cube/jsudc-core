@@ -42,13 +42,17 @@ function checkRange(def: FieldDef, v: number): string | null {
 
 const isStringArray = (v: unknown) => Array.isArray(v) && v.every((x) => typeof x === "string");
 
+/** A lookup key: a string (a row id, a code) or an integer. */
+export function isLookupKey(v: unknown): v is string | number {
+  return typeof v === "string" || (typeof v === "number" && Number.isInteger(v));
+}
+
 /** The type/modifier check for one non-empty value; `null` when it is fine. */
 function checkValue(def: FieldDef, v: unknown): string | null {
   switch (def.type) {
     case "string":
     case "text":
     case "image":
-    case "lookup":
       if (typeof v !== "string") return "must be a string";
       if (def.length !== undefined && v.length > def.length) {
         return `must be at most ${def.length} characters`;
@@ -85,9 +89,18 @@ function checkValue(def: FieldDef, v: unknown): string | null {
       return typeof v === "string" && (def.values ?? []).includes(v)
         ? null
         : `must be one of: ${(def.values ?? []).join(", ")}`;
+    case "lookup":
+      if (!isLookupKey(v)) return "must be a key (a string or an integer)";
+      if (typeof v === "string" && def.length !== undefined && v.length > def.length) {
+        return `must be at most ${def.length} characters`;
+      }
+      return null;
     case "string_array":
-    case "lookup_array":
       return isStringArray(v) ? null : "must be a list of strings";
+    case "lookup_array":
+      return Array.isArray(v) && v.every(isLookupKey)
+        ? null
+        : "must be a list of keys (strings or integers)";
     case "relation":
       return typeof v === "string" || typeof v === "number" ? null : "must be an id";
     case "json":

@@ -12,7 +12,7 @@ export const KanbanCardFieldsSchema = z.looseObject({
   priority_field: Field.optional(),
   tags_field: Field.optional(),
   due_field: Field.optional(),
-  /** A `string_array` of names; the card shows their initials. */
+  /** A `string_array` of names, or a `lookup_array` (the labels are shown); the card shows their initials. */
   assignees_field: Field.optional(),
   footer_fields: z.array(Field).optional(),
 });
