@@ -7,6 +7,11 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-15
+
+Lookups, level 1, and drill-down from a row (`row_link`), released together
+with `@jsudc/server` 0.3.0 and `@jsudc/react` 0.3.0.
+
 ### Added
 
 - Lookups, level 1: `LookupDefSchema` (`{ collection, key_field?, label_field,
@@ -66,7 +71,8 @@ First tagged version, installed from the GitHub tag.
 - `@jsudc/core/client`: `UdcClient`, the envelope RPC over `fetch`, and
   `UdcError`.
 
-[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/digital-cube/jsudc-core/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/digital-cube/jsudc-core/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/digital-cube/jsudc-core/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/digital-cube/jsudc-core/releases/tag/v0.1.0
