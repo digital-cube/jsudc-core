@@ -39,6 +39,19 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
   composes `contains` as before). `SEARCH_CAPABILITIES`,
   `SearchCapabilitySchema`, the type `SearchCapability`, and
   `sourceAnswersSearch(capabilities)`.
+- The change feed (wire side): the capability `changes` (optional; absent
+  means poll, `subscribe` stays `false`), the event `ChangeEventSchema` /
+  `ChangeEvent` (`{ collection, op, ids? }`, no row data), `CHANGE_OPS` /
+  `ChangeOpSchema` (`insert`, `update`, `delete`), `CHANGES_ROUTE`
+  (`/udc/changes`), the SSE event names `CHANGE_EVENT` and
+  `CHANGES_READY_EVENT` with `ChangesReadySchema`, `sourcePushesChanges(capabilities)`
+  and `SseParser`, an incremental Server-Sent Events parser.
+  `UdcClient.changes({ collections, onChange, onOpen?, onError?, signal?,
+  minDelayMs?, maxDelayMs?, idleTimeoutMs? })` reads the stream with `fetch`
+  (so `headers` and `credentials` apply), reconnects with backoff, reports
+  `reconnected` so the caller can refetch, and stops on abort or a refusal
+  (401 unauthenticated, 403, 404, 400). The type `ChangesOptions` from
+  `@jsudc/core/client`.
 
 ## [0.4.0] - 2026-11-22
 

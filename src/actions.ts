@@ -44,6 +44,13 @@ export const CapabilitiesSchema = z.looseObject({
    * into the filter as `contains` over `view.search.fields`, as before.
    */
   search: SearchCapabilitySchema.optional(),
+  /**
+   * The server pushes this collection's changes over the change feed
+   * (`GET /udc/changes`, Server-Sent Events of `ChangeEvent`). Absent means
+   * `false`: the client polls (`view.refresh_interval_ms`) as before. Not
+   * `subscribe`, which promises udc-py's WebSocket subscription actions.
+   */
+  changes: z.boolean().optional(),
   supported_filter_ops: z.array(FilterOpSchema),
 });
 

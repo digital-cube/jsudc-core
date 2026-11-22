@@ -1,4 +1,12 @@
 import {
+  CHANGE_EVENT,
+  CHANGES_READY_EVENT,
+  CHANGES_ROUTE,
+  type ChangeEvent,
+  ChangeEventSchema,
+  SseParser,
+} from "./changes.js";
+import {
   type ActionName,
   type ActionRequest,
   type ActionResponse,
@@ -45,6 +53,77 @@ type NotBuiltin<N extends string> = N extends ActionName ? never : unknown;
 
 export interface CallOptions {
   signal?: AbortSignal;
+}
+
+/** What `UdcClient.changes` is called with. */
+export interface ChangesOptions {
+  /** The collections to be told about; the server checks access and scope for each. */
+  collections: readonly string[];
+  /** One change the stream delivered, already parsed (`ChangeEvent`). */
+  onChange(event: ChangeEvent): void;
+  /**
+   * The stream is subscribed (the server's `ready` event). `reconnected` is
+   * `true` from the second time on: changes made while the stream was down
+   * were not sent (there is no replay), so refetch what is shown.
+   */
+  onOpen?(info: { reconnected: boolean }): void;
+  /**
+   * The connection failed or the stream ended; the next attempt follows in
+   * `delayMs`. For logs and a "reconnecting" badge; the method keeps going.
+   */
+  onError?(err: unknown, info: { attempt: number; delayMs: number }): void;
+  /** Aborting it closes the stream and resolves the call. */
+  signal?: AbortSignal;
+  /**
+   * The first wait before a reconnect, doubled per failed attempt up to
+   * `maxDelayMs`, with jitter. Default 1000 ms, or the server's `retry:` hint.
+   */
+  minDelayMs?: number;
+  /** The longest wait between attempts. Default 30 000 ms. */
+  maxDelayMs?: number;
+  /**
+   * A stream that delivers nothing, not even the server's heartbeat, for
+   * this long is taken for dead and reopened (a proxy that dropped the
+   * connection without closing it). Default 45 000 ms; `0` turns it off.
+   */
+  idleTimeoutMs?: number;
+}
+
+const DEFAULT_MIN_DELAY_MS = 1000;
+const DEFAULT_MAX_DELAY_MS = 30_000;
+const DEFAULT_IDLE_TIMEOUT_MS = 45_000;
+
+/** Wait `ms`, or less when `signal` aborts. */
+function pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) return resolve();
+    const done = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", done);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    signal?.addEventListener("abort", done, { once: true });
+  });
+}
+
+/** The refusal an answer that is not a stream stands for, or `null` when it is worth retrying. */
+async function refusal(res: Response): Promise<UdcError | null> {
+  if (res.status === 401) {
+    return unauthenticatedError("udc.changes: HTTP 401", { http_status: 401 });
+  }
+  if (![400, 403, 404].includes(res.status)) return null;
+  const body = await res.json().catch(() => null);
+  const err = ErrorPayloadSchema.safeParse(body);
+  if (err.success) {
+    return UdcError.fromPayload({
+      ...err.data,
+      details: { ...err.data.details, http_status: res.status },
+    });
+  }
+  const code =
+    res.status === 403 ? "forbidden" : res.status === 404 ? "not_found" : "validation_error";
+  return new UdcError(code, `udc.changes: HTTP ${res.status}`, { http_status: res.status });
 }
 
 function messageId(): string {
@@ -153,6 +232,98 @@ export class UdcClient {
     throw new UdcError("internal", `udc.${action}: unexpected reply kind ${String(envelope.kind)}`);
   }
 
+  /**
+   * Open the change feed for `collections` (`capabilities.changes`) and call
+   * `onChange` for every change until `signal` aborts. One `GET
+   * ${httpUrl}/udc/changes` read with `fetch` as a stream, so the client's
+   * `headers` (evaluated per connection) and `credentials` apply as to any
+   * call. A dropped connection is retried with exponential backoff and
+   * reported through `onOpen({reconnected: true})` once it is back.
+   *
+   * Resolves when `signal` aborts. Rejects, without retrying, when the server
+   * refuses: HTTP 401 with the "not signed in" `UdcError`
+   * (`isUnauthenticated`), 403 `forbidden`, 404 `not_found` (a collection
+   * this request may not see), 400 `validation_error`.
+   */
+  async changes(opts: ChangesOptions): Promise<void> {
+    const { signal } = opts;
+    const maxDelay = opts.maxDelayMs ?? DEFAULT_MAX_DELAY_MS;
+    let baseDelay = opts.minDelayMs ?? DEFAULT_MIN_DELAY_MS;
+    const query = new URLSearchParams({ collections: opts.collections.join(",") });
+    const url = `${this.httpUrl}${CHANGES_ROUTE}?${query.toString()}`;
+    const idleTimeout = opts.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS;
+    let opened = 0;
+    let attempt = 0;
+    while (!signal?.aborted) {
+      let failure: unknown;
+      // One controller per attempt: the caller's abort, or the idle timer, ends it.
+      const attemptCtl = new AbortController();
+      const stop = () => attemptCtl.abort(signal?.reason);
+      signal?.addEventListener("abort", stop, { once: true });
+      let idle: ReturnType<typeof setTimeout> | undefined;
+      const touch = () => {
+        if (idleTimeout <= 0) return;
+        clearTimeout(idle);
+        idle = setTimeout(
+          () => attemptCtl.abort(new Error("udc.changes: the stream went idle")),
+          idleTimeout,
+        );
+      };
+      try {
+        const extra = typeof this.headers === "function" ? await this.headers() : this.headers;
+        touch();
+        const res = await this.fetchImpl(url, {
+          method: "GET",
+          headers: { accept: "text/event-stream", ...extra },
+          ...(this.credentials !== undefined ? { credentials: this.credentials } : {}),
+          signal: attemptCtl.signal,
+        });
+        const refused = await refusal(res);
+        if (refused) throw refused;
+        if (!res.ok || !res.body) throw new Error(`udc.changes: HTTP ${res.status}`);
+        const parser = new SseParser();
+        const decoder = new TextDecoder();
+        const reader = res.body.getReader();
+        try {
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            touch();
+            for (const msg of parser.push(decoder.decode(value, { stream: true }))) {
+              if (msg.retry !== undefined && opts.minDelayMs === undefined) baseDelay = msg.retry;
+              if (msg.event === CHANGES_READY_EVENT) {
+                attempt = 0;
+                opts.onOpen?.({ reconnected: opened > 0 });
+                opened += 1;
+              } else if (msg.event === CHANGE_EVENT) {
+                const event = parseChange(msg.data);
+                if (event) opts.onChange(event);
+              }
+            }
+          }
+        } finally {
+          reader.releaseLock();
+        }
+        failure = new Error("udc.changes: the stream ended");
+      } catch (err) {
+        if (signal?.aborted) return;
+        if (err instanceof UdcError) throw err;
+        failure = attemptCtl.signal.aborted ? attemptCtl.signal.reason : err;
+      } finally {
+        clearTimeout(idle);
+        signal?.removeEventListener("abort", stop);
+        attemptCtl.abort();
+      }
+      if (signal?.aborted) return;
+      attempt += 1;
+      const ceiling = Math.min(maxDelay, baseDelay * 2 ** (attempt - 1));
+      // Jitter, so the clients of a restarted server do not all come back at once.
+      const delayMs = Math.round(ceiling * (0.5 + Math.random() / 2));
+      opts.onError?.(failure, { attempt, delayMs });
+      await pause(delayMs, signal);
+    }
+  }
+
   collections() {
     return this.call("collections", {});
   }
@@ -201,5 +372,15 @@ export class UdcClient {
   /** The file a `source_yaml` collection is read from, as written. */
   sourceRead(collection: string) {
     return this.call("source.read", { collection });
+  }
+}
+
+/** A `change` event's data, or `null` when it is not one (skipped, never fatal). */
+function parseChange(data: string): ChangeEvent | null {
+  try {
+    const parsed = ChangeEventSchema.safeParse(JSON.parse(data));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
   }
 }

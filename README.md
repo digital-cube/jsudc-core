@@ -151,6 +151,72 @@ const page = sourceAnswersSearch(capabilities)
     });
 ```
 
+### The change feed: `changes`
+
+A server that pushes changes says `capabilities.changes: true` on a
+collection; absent means "poll as today" (`view.refresh_interval_ms`). It is a
+new capability, not `subscribe`, which stays `false`: that one promises
+udc-py's WebSocket subscription actions, which jsudc does not implement.
+
+The feed is one long-lived `GET ${httpUrl}/udc/changes?collections=a,b`
+(`CHANGES_ROUTE`) answered as Server-Sent Events. Each `change` event's data
+is a `ChangeEvent`:
+
+```ts
+type ChangeEvent = {
+  collection: string;
+  op: "insert" | "update" | "delete"; // CHANGE_OPS, the same three as mutate
+  ids?: string[]; // the changed rows you may see; absent: "this collection changed"
+};
+```
+
+It carries no row data: the client refetches under its own scope, so a field
+the caller may not see can never travel through the feed, and the server
+only tells a caller about rows inside the caller's own scope. Without `ids`
+(a burst coalesced into one event, a renumbering, a host that did not say
+which rows) refetch whatever is shown of that collection. There is no replay:
+after a reconnect, refetch, because changes made while the stream was down
+were not sent.
+
+`UdcClient.changes(opts)` reads the stream with `fetch` (not `EventSource`,
+which cannot send headers), so the client's `headers` function (evaluated per
+connection) and `credentials` apply exactly as to every call. It calls
+`onChange` per event, `onOpen({ reconnected })` each time the stream is
+subscribed, and `onError(err, { attempt, delayMs })` before each reconnect;
+a dropped or idle stream (no heartbeat for `idleTimeoutMs`, default 45 s) is
+reopened with exponential backoff and jitter (`minDelayMs`, default 1 s or the
+server's `retry:` hint, up to `maxDelayMs`, default 30 s). It resolves when
+`signal` aborts, and rejects without retrying when the server refuses: HTTP
+401 with the "not signed in" error (`isUnauthenticated`), 403 `forbidden`, 404
+`not_found` (a collection the caller may not see), 400 `validation_error`.
+
+```ts
+import { isUnauthenticated, sourcePushesChanges } from "@jsudc/core";
+import { UdcClient } from "@jsudc/core/client";
+
+const udc = new UdcClient({ httpUrl: "", headers: () => ({ "x-csrftoken": csrf() }) });
+const { capabilities } = await udc.describe("messages");
+
+if (sourcePushesChanges(capabilities)) {
+  const stop = new AbortController();
+  udc
+    .changes({
+      collections: ["messages", "folders"],
+      onChange: (e) => refetch(e.collection, e.ids), // ids absent: refetch it all
+      onOpen: ({ reconnected }) => reconnected && refetchEverything(),
+      signal: stop.signal, // stop.abort() closes the stream
+    })
+    .catch((err) => {
+      if (isUnauthenticated(err)) location.assign("/login");
+    });
+}
+```
+
+`ChangeEventSchema`, `ChangeOpSchema`, `CHANGE_EVENT` / `CHANGES_READY_EVENT`
+(the SSE event names; `ready` carries `{ collections }` once the stream is
+subscribed) and `SseParser` (an incremental event-stream parser, for a host
+that reads the stream itself) are exported as well.
+
 ### Many rows at once: `mutate_many`
 
 `mutate_many` changes (`update`, with the patch `row`) or deletes many rows in
