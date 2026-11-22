@@ -7,6 +7,14 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-22
+
+What the next features of a multi-tenant host stand on: many rows changed in one
+request, the host's own actions typed end to end, search answered by the source
+and the change feed on the wire; released together with `@jsudc/server` 0.5.0
+and `@jsudc/react` 0.5.0. Every addition is optional: a 0.4.0 payload parses
+exactly as before.
+
 ### Added
 
 - Action `mutate_many`: change (`update`, with the patch `row`) or delete many
@@ -153,7 +161,8 @@ First tagged version, installed from the GitHub tag.
 - `@jsudc/core/client`: `UdcClient`, the envelope RPC over `fetch`, and
   `UdcError`.
 
-[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/digital-cube/jsudc-core/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/digital-cube/jsudc-core/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/digital-cube/jsudc-core/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/digital-cube/jsudc-core/compare/v0.1.1...v0.2.0
