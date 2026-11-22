@@ -232,15 +232,55 @@ const udc = new UdcClient({ httpUrl: "https://api.example.com" });
 const { rows, total } = await udc.list({ collection: "books", page: { limit: 20 } });
 ```
 
-`UdcClient({ httpUrl, headers?, fetch? })` has one method per action
+`UdcClient({ httpUrl, headers?, credentials?, fetch? })` has one method per action
 (`collections`, `describe`, `list`, `read`, `mutate`, `reindex`,
 `treeReparent`, `schemaAddField`, `schemaUpdateField`,
 `schemaSoftDeleteField`, `sourceRead`) and a generic `call(action, payload)`.
 It returns the `.ok` payload and throws `UdcError` on `.err`; a transport
 failure (network, a non-200 from a proxy) is a plain `Error`, so a retry policy
-can tell the two apart. Every request carries an `x-udc-message-id` header for
+can tell the two apart; a 401 / 403 is a refusal and a `UdcError` (below). Every request carries an `x-udc-message-id` header for
 log correlation. It needs only a global `fetch` (browsers, Node 18+, React
 Native); pass `fetch` to inject one.
+
+### Sessions: headers per call, credentials, 401 / 403
+
+`headers` is either a fixed object or a function the client calls before every
+request (it may be async), so a CSRF token that changes with the session needs
+no new client. `credentials` is passed to `fetch` as is when given: leave it out
+on the same origin, use `"include"` to send a cookie session to another origin.
+
+```ts
+import { UdcClient } from "@jsudc/core/client";
+
+const csrf = () => document.cookie.match(/(?:^|; )csrftoken=([^;]*)/)?.[1] ?? "";
+
+const udc = new UdcClient({
+  httpUrl: "https://api.example.com",
+  credentials: "include", // the session cookie travels to the other origin
+  headers: () => ({ "x-csrftoken": csrf() }), // read on every call
+});
+```
+
+An HTTP 401 or 403 from whatever stands in front of `/udc` (the host's auth
+middleware, a gateway) is a refusal, not a transport failure, so it is a
+`UdcError` and nothing retries it:
+
+| HTTP status   | thrown                                                                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 401           | `forbidden`, `details: { reason: "unauthenticated", http_status: 401 }` — the same error as the in-protocol "not signed in", so `isUnauthenticated(err)` is `true` |
+| 403           | `forbidden`, `details: { http_status: 403 }`                                                                                                                       |
+| other non-200 | a plain `Error` (`udc.<action>: HTTP <status>`), as before                                                                                                         |
+
+```ts
+import { isUnauthenticated } from "@jsudc/core";
+
+try {
+  await udc.list({ collection: "message" });
+} catch (err) {
+  if (isUnauthenticated(err)) location.assign("/login");
+  else throw err;
+}
+```
 
 ## Develop
 

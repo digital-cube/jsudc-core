@@ -14,6 +14,22 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
   builds it, `isUnauthenticated(err)` recognises it on a `UdcError` or an error
   payload, `UNAUTHENTICATED_REASON` is the reason string. The server's request
   context (`@jsudc/server` `context`) throws it to refuse an anonymous request.
+- `UdcClient` for cookie sessions and CSRF: `headers` may be a function
+  (`UdcHeaders`, `() => Record<string, string> | Promise<…>`) the client calls
+  before every request; a plain object still works. New option `credentials`
+  (`RequestCredentials`), passed to `fetch` when given.
+
+### Changed
+
+- `UdcClient`: an HTTP 401 in front of `/udc` now throws the same `UdcError` as
+  the in-protocol "not signed in" (`forbidden`, `details.reason:
+  "unauthenticated"`, plus `details.http_status: 401`), and an HTTP 403 throws
+  `forbidden` with `details.http_status: 403`. Until now both were a plain
+  `Error`, which `@jsudc/react` retried twice and then showed as a transport
+  failure with Retry. This is the one deliberate change an unchanged host can
+  see: a 401 / 403 never produced a working view, so the only difference is
+  that the failure shows at once, as `forbidden`, instead of after two
+  retries. Every other non-200 is still a plain `Error`.
 
 ## [0.3.0] - 2026-11-15
 
