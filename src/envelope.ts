@@ -92,3 +92,36 @@ export function isUdcError(err: unknown): err is UdcError {
 export function isVersionConflict(err: unknown): err is UdcError {
   return err instanceof UdcError && err.code === "version_conflict";
 }
+
+/**
+ * `details.reason` of a `forbidden` error that means "not signed in". It is a
+ * reason, not a new code: a client of 0.3.x parses it as plain `forbidden`.
+ */
+export const UNAUTHENTICATED_REASON = "unauthenticated";
+
+/**
+ * The error a host throws (from the server's `context` hook, or anywhere else)
+ * when a request carries no valid session: `forbidden` with
+ * `details.reason: "unauthenticated"`, plus any other details given.
+ */
+export function unauthenticatedError(
+  message = "not signed in",
+  details?: Record<string, unknown>,
+): UdcError {
+  return new UdcError("forbidden", message, { ...details, reason: UNAUTHENTICATED_REASON });
+}
+
+/**
+ * Whether an error means "not signed in": a `UdcError` (or an error payload
+ * off the wire) with code `forbidden` and `details.reason: "unauthenticated"`.
+ */
+export function isUnauthenticated(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const { code, details } = err as { code?: unknown; details?: unknown };
+  return (
+    code === "forbidden" &&
+    typeof details === "object" &&
+    details !== null &&
+    (details as { reason?: unknown }).reason === UNAUTHENTICATED_REASON
+  );
+}

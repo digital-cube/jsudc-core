@@ -7,6 +7,14 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- "Not signed in" as `forbidden` with `details.reason: "unauthenticated"` (no
+  new error code, so a 0.3.x client still parses it): `unauthenticatedError()`
+  builds it, `isUnauthenticated(err)` recognises it on a `UdcError` or an error
+  payload, `UNAUTHENTICATED_REASON` is the reason string. The server's request
+  context (`@jsudc/server` `context`) throws it to refuse an anonymous request.
+
 ## [0.3.0] - 2026-11-15
 
 Lookups, level 1, and drill-down from a row (`row_link`), released together

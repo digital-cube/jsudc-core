@@ -44,6 +44,28 @@ An error payload carries one of a closed set of codes (`not_found`,
 `UdcError.fromPayload()` to cross the wire, and `isUdcError` /
 `isVersionConflict` as guards.
 
+"Not signed in" is not a code of its own: it is `forbidden` with
+`details.reason: "unauthenticated"`, so a client that predates it still parses
+the reply (as plain `forbidden`). `unauthenticatedError(message?, details?)`
+builds it, and `isUnauthenticated(err)` recognises it on a `UdcError` or on a
+raw error payload:
+
+```json
+{ "kind": "udc.list.err", "id": "…",
+  "payload": { "code": "forbidden", "message": "not signed in", "details": { "reason": "unauthenticated" } } }
+```
+
+```ts
+import { isUnauthenticated, unauthenticatedError } from "@jsudc/core";
+
+// server side, in a host's `context` hook (see @jsudc/server, "Request context and scope")
+if (!session) throw unauthenticatedError();
+
+// client side
+try { await client.list({ collection: "message" }); }
+catch (err) { if (isUnauthenticated(err)) location.assign("/login"); else throw err; }
+```
+
 ## Actions
 
 `ACTIONS` maps every action name to its request and response schema, so a
