@@ -87,7 +87,7 @@ server can dispatch generically and a client is typed per action
 | -------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
 | `collections`              | `{}`                                                                                 | `{ collections }`, what the server serves                         |
 | `describe`                 | `{ collection }`                                                                     | schema, view config, capabilities, filterable fields, source info |
-| `list`                     | `{ collection, filter?, sort?, page? }`                                              | `{ rows, next_cursor, total }`                                    |
+| `list`                     | `{ collection, filter?, sort?, page?, search? }`                                     | `{ rows, next_cursor, total }`                                    |
 | `read`                     | `{ collection, id }`                                                                 | `{ row }`                                                         |
 | `mutate`                   | `{ collection, op: "insert" \| "update" \| "delete", id?, row?, expected_version? }` | `{ row }`                                                         |
 | `schema.add_field`         | `{ collection, name, fielddef, position }`                                           | `{ schema }`                                                      |
@@ -118,6 +118,37 @@ MutateRequestSchema.parse({
   row: { title: "Na Drini ćuprija" },
   expected_version: 3,
 });
+```
+
+### Search answered by the source: `search`
+
+By default the search box is the client's business: `@jsudc/react` turns its
+text into `contains` conditions over `view.search.fields` and ANDs them into
+`filter`. A collection whose source has its own full-text index (a `tsvector`
+in Postgres, OpenSearch beside it) says `capabilities.search: "source"`
+instead. The client then sends the text as `ListRequest.search` and composes
+nothing: the source matches it, narrowed by `filter` and by the caller's row
+scope (a search never widens what a caller may see), and with no `sort` it may
+return the rows in relevance order. Absent means today's behaviour, and a
+source without the capability refuses a `search` with `unsupported_op` rather
+than ignore it. `sourceAnswersSearch(capabilities)` says which way to go;
+`SEARCH_CAPABILITIES` lists the values (only `"source"` for now).
+
+```ts
+import { sourceAnswersSearch, UdcClient } from "@jsudc/core";
+
+const client = new UdcClient({ httpUrl: "" });
+const { capabilities } = await client.describe("mail");
+
+const page = sourceAnswersSearch(capabilities)
+  ? // The source matches and ranks; `filter` keeps the chips only.
+    await client.list({ collection: "mail", search: "invoice -draft", page: { limit: 50 } })
+  : // Today's way: the text becomes `contains` in the filter.
+    await client.list({
+      collection: "mail",
+      filter: { field: "subject", op: "contains", value: "invoice" },
+      page: { limit: 50 },
+    });
 ```
 
 ### Many rows at once: `mutate_many`

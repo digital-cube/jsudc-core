@@ -33,6 +33,12 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
   applies), `action` (the server action to call; `actionServerName(def)`
   defaults it to the `kind`) and `confirm` (`true` or the question to ask;
   `actionConfirms(def)` defaults it to on for `delete`).
+- Search answered by the source: `ListRequest.search` (optional), the text of
+  the search box for a source that matches it itself, and the capability
+  `search` (optional; its only value is `"source"`, absent means the client
+  composes `contains` as before). `SEARCH_CAPABILITIES`,
+  `SearchCapabilitySchema`, the type `SearchCapability`, and
+  `sourceAnswersSearch(capabilities)`.
 
 ## [0.4.0] - 2026-11-22
 

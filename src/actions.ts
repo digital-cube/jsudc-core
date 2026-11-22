@@ -9,6 +9,11 @@ import { ViewConfigSchema } from "./view.js";
 
 const CollectionName = z.string().min(1);
 
+/** The values of `capabilities.search`; only `"source"` for now. */
+export const SEARCH_CAPABILITIES = ["source"] as const;
+export const SearchCapabilitySchema = z.enum(SEARCH_CAPABILITIES);
+export type SearchCapability = z.infer<typeof SearchCapabilitySchema>;
+
 export const CapabilitiesSchema = z.looseObject({
   mutate: z.boolean(),
   subscribe: z.boolean(),
@@ -32,10 +37,28 @@ export const CapabilitiesSchema = z.looseObject({
    * (`mutate_many`). Absent means `false`: a client then loops over `mutate`.
    */
   mutate_many: z.boolean().optional(),
+  /**
+   * Who answers the search box. `"source"`: the text travels as
+   * `ListRequest.search` and the source matches it from its own index (and
+   * may order the rows by relevance). Absent: the client composes the text
+   * into the filter as `contains` over `view.search.fields`, as before.
+   */
+  search: SearchCapabilitySchema.optional(),
   supported_filter_ops: z.array(FilterOpSchema),
 });
 
 export type Capabilities = z.infer<typeof CapabilitiesSchema>;
+
+/**
+ * Whether the collection's source answers the search box itself
+ * (`capabilities.search === "source"`): the client then sends the text as
+ * `ListRequest.search` instead of composing `contains` into the filter.
+ */
+export function sourceAnswersSearch(
+  capabilities: { search?: unknown } | null | undefined,
+): boolean {
+  return capabilities?.search === "source";
+}
 
 // collections ---------------------------------------------------------------
 
@@ -123,6 +146,14 @@ export const ListRequestSchema = z.object({
   filter: FilterNodeSchema.optional(),
   sort: z.array(SortKeySchema).optional(),
   page: PageRequestSchema.optional(),
+  /**
+   * The search box's text, answered by the source itself. Only for a
+   * collection whose `capabilities.search` is `"source"`; a source without
+   * it refuses the field with `unsupported_op`. The text narrows what the
+   * filter and the caller's scope already allow, never widens it. With no
+   * `sort`, the source may return the rows in relevance order.
+   */
+  search: z.string().optional(),
 });
 
 export type ListRequest = z.infer<typeof ListRequestSchema>;
