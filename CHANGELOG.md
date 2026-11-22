@@ -7,6 +7,33 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Action `mutate_many`: change (`update`, with the patch `row`) or delete many
+  rows in one request, by `ids` (at most `MUTATE_MANY_MAX_IDS`, 10 000) or by
+  `filter` minus `except_ids`, inside the caller's row scope; no
+  `expected_version`. It answers `{ updated, failed: [{ id, code, message? }] }`.
+  `MutateManyRequestSchema`, `MutateManyResponseSchema`,
+  `MutateManyFailureSchema`, `MUTATE_MANY_OPS`; in `ACTIONS` (so in
+  `ACTION_NAMES`), and `UdcClient.mutateMany(req)`.
+- Capability `mutate_many` (optional; absent means `false`).
+- Host actions typed end to end: `defineHostAction({ name, request, response })`
+  returns a `HostAction` that `UdcClient.call(action, payload)` accepts (payload
+  typed from the request schema, the answer parsed with the response schema)
+  and `@jsudc/server`'s `Dispatcher.register` accepts. `isHostAction`,
+  `HOST_ACTION_NAME_RE`, and the types `HostActionPayload`, `HostActionRequest`,
+  `HostActionReply`, `HostActionResponse`. `UdcClient.call` also takes any
+  other name with explicit types (`call<Res, Req>(name, payload)`); the
+  built-in actions stay typed as before.
+- Action eligibility: `isActionEligible(def, row)` and
+  `isActionEligibleForAll(def, rows)` evaluate an `ActionDef`'s `when` (a
+  boolean, or a filter over `row.__meta.state` when the row has one, else over
+  its fields); `eligibilitySubject(row)` says which.
+- `ActionDef` gains three optional, typed keys: `set` (the patch the action
+  applies), `action` (the server action to call; `actionServerName(def)`
+  defaults it to the `kind`) and `confirm` (`true` or the question to ask;
+  `actionConfirms(def)` defaults it to on for `delete`).
+
 ## [0.4.0] - 2026-11-22
 
 What a multi-tenant host needs on the wire: "not signed in" inside the protocol,

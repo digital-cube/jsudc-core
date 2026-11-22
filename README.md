@@ -96,6 +96,7 @@ server can dispatch generically and a client is typed per action
 | `reindex`                  | `{ collection, scope, order_field?, gap? }`                                          | `{ updated }`                                                     |
 | `tree.reparent`            | `{ collection, id, parent, order, fields, expected_version? }`                       | `{ row, updated }`                                                |
 | `source.read`              | `{ collection }`                                                                     | the source file as written                                        |
+| `mutate_many`              | `{ collection, op: "update" \| "delete", ids? \| filter?, except_ids?, row? }`       | `{ updated, failed }`                                             |
 
 A row is flat: `{ __meta: { id, version }, ...fields }`. `update` and `delete`
 take `expected_version`; a stale one fails with `version_conflict`. Paging is
@@ -117,6 +118,99 @@ MutateRequestSchema.parse({
   row: { title: "Na Drini ćuprija" },
   expected_version: 3,
 });
+```
+
+### Many rows at once: `mutate_many`
+
+`mutate_many` changes (`update`, with the patch `row`) or deletes many rows in
+one request, inside the caller's row scope. It names the rows either by `ids`
+(at most `MUTATE_MANY_MAX_IDS`, 10 000) or by `filter` — everything that
+matches, minus `except_ids` ("all in the filter, except these"); exactly one of
+`ids` and `filter`, and `{ and: [] }` is the filter that matches every row.
+There is no `expected_version`: the server bumps the version of every row it
+changes. The answer says how many rows were changed and which of the given ids
+were not (`not_found` for a missing id and for one outside the scope alike). A
+collection that serves it says `capabilities.mutate_many: true`; absent means
+`false`, and a client loops over `mutate` instead.
+
+```ts
+import { filter, UdcClient } from "@jsudc/core";
+
+const client = new UdcClient({ httpUrl: "" });
+
+// The selected rows.
+await client.mutateMany({ collection: "mail", op: "delete", ids: ["m1", "m2"] });
+
+// Everything in the inbox but two, archived in one request.
+const { updated, failed } = await client.mutateMany({
+  collection: "mail",
+  op: "update",
+  filter: filter.eq("folder", "inbox"),
+  except_ids: ["m7", "m9"],
+  row: { archived: true },
+});
+```
+
+### Host actions, typed end to end
+
+A host adds actions of its own with `defineHostAction`: the name and the Zod
+schemas of the request and the response, written once in a module the server
+and the browser both import. `@jsudc/server`'s `Dispatcher.register` takes the
+definition (the handler's payload and return type follow from it, and it
+receives the request context), and `UdcClient.call` takes it too: the payload
+is typed from the request schema, and the answer is parsed with the response
+schema (one that does not parse throws `UdcError` `internal`). A built-in
+action name is refused. `HostActionPayload`, `HostActionRequest`,
+`HostActionReply` and `HostActionResponse` name the four sides.
+
+```ts
+// shared/actions.ts — imported by the server and the browser
+import { defineHostAction } from "@jsudc/core";
+import { z } from "zod";
+
+export const archiveThread = defineHostAction({
+  name: "mail.archive_thread",
+  request: z.object({ thread_id: z.string() }),
+  response: z.object({ archived: z.number().int() }),
+});
+
+// browser
+const { archived } = await client.call(archiveThread, { thread_id: "t42" });
+```
+
+`call` keeps its signature for the built-in actions. For an action without a
+shared definition, a plain name with explicit types is the escape hatch:
+`client.call<{ pong: boolean }, { at: number }>("ping", { at: 1 })` (the answer
+is not checked; a built-in name never falls through to it).
+
+### Action eligibility and what an action does
+
+An `ActionDef` (a view's `row_action_defs` and `bulk_actions`) says when it
+applies with `when`: a boolean, or a filter node. `isActionEligible(def, row)`
+evaluates it for one row and `isActionEligibleForAll(def, rows)` for a
+selection (it must hold for every row; an empty selection is `false`). A filter
+is evaluated with `evaluateFilter` against `row.__meta.state` when the source
+provides one (udc-py's convention), else against the row's own fields; a
+filter it cannot evaluate makes the action ineligible.
+
+Three optional keys say what an action does when the client has no handler
+for it: `set`, the patch it applies (`{ archived: true }`); `action`, the
+server action to call (default the `kind`, `actionServerName(def)`); and
+`confirm`, ask first (`true` or the question; default on for `delete` only,
+`actionConfirms(def)`).
+
+```ts
+import { ActionDefSchema, actionConfirms, filter, isActionEligibleForAll } from "@jsudc/core";
+
+const archive = ActionDefSchema.parse({
+  kind: "archive",
+  label: "Archive",
+  when: filter.eq("archived", false),
+  set: { archived: true },
+});
+
+isActionEligibleForAll(archive, selectedRows); // false as soon as one row is archived
+actionConfirms(archive); // false; a "delete" action would ask
 ```
 
 ## Filter DSL
