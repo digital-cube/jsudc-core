@@ -39,6 +39,7 @@ describe("ACTIONS registry", () => {
       "reindex",
       "tree.reparent",
       "source.read",
+      "mutate_many",
     ]);
     expect(isActionName("list")).toBe(true);
     expect(isActionName("toString")).toBe(false);

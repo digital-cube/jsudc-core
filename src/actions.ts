@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ErrorCodeSchema } from "./envelope.js";
 import { FilterNodeSchema, FilterOpSchema } from "./filter.js";
 import { PageRequestSchema, SortKeySchema } from "./query.js";
 import { RowSchema } from "./row.js";
@@ -26,6 +27,11 @@ export const CapabilitiesSchema = z.looseObject({
    * the infinite list and `useUdcAllRows` then walk it by offset.
    */
   paging: z.array(z.enum(["cursor", "offset"])).optional(),
+  /**
+   * The collection changes or deletes many rows in one request
+   * (`mutate_many`). Absent means `false`: a client then loops over `mutate`.
+   */
+  mutate_many: z.boolean().optional(),
   supported_filter_ops: z.array(FilterOpSchema),
 });
 
@@ -171,6 +177,72 @@ export type MutateRequest = z.infer<typeof MutateRequestSchema>;
 export const MutateResponseSchema = z.object({ row: RowSchema });
 export type MutateResponse = z.infer<typeof MutateResponseSchema>;
 
+// mutate_many ---------------------------------------------------------------
+
+export const MUTATE_MANY_OPS = ["update", "delete"] as const;
+export type MutateManyOp = (typeof MUTATE_MANY_OPS)[number];
+
+/** The most ids one `mutate_many` request may name (`ids`, `except_ids`). */
+export const MUTATE_MANY_MAX_IDS = 10_000;
+
+const IdList = z.array(z.string().min(1)).max(MUTATE_MANY_MAX_IDS);
+
+/**
+ * Change (`update`, with the patch `row`) or delete many rows of a collection
+ * in one request, inside the caller's row scope: the rows `ids` names, or
+ * every row `filter` matches except `except_ids` ("all that match, except
+ * these"). Exactly one of `ids` and `filter`; `{ and: [] }` is the filter
+ * that matches every row. No `expected_version`: the server bumps each
+ * changed row's version.
+ */
+export const MutateManyRequestSchema = z
+  .object({
+    collection: CollectionName,
+    op: z.enum(MUTATE_MANY_OPS),
+    ids: IdList.optional(),
+    filter: FilterNodeSchema.optional(),
+    except_ids: IdList.optional(),
+    row: z.record(z.string(), z.unknown()).optional(),
+  })
+  .superRefine((req, ctx) => {
+    if ((req.ids === undefined) === (req.filter === undefined)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["ids"],
+        message: "give exactly one of ids and filter",
+      });
+    }
+    if (req.except_ids !== undefined && req.filter === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["except_ids"],
+        message: "except_ids goes with filter",
+      });
+    }
+    if (req.op === "update" && req.row === undefined) {
+      ctx.addIssue({ code: "custom", path: ["row"], message: "update needs a row" });
+    }
+  });
+
+export type MutateManyRequest = z.infer<typeof MutateManyRequestSchema>;
+
+/** One id of a `mutate_many` request that was not changed, and why (`not_found`: missing or out of scope). */
+export const MutateManyFailureSchema = z.object({
+  id: z.string(),
+  code: ErrorCodeSchema,
+  message: z.string().optional(),
+});
+
+export type MutateManyFailure = z.infer<typeof MutateManyFailureSchema>;
+
+/** How many rows were changed (or deleted), and the ids of the request that were not. */
+export const MutateManyResponseSchema = z.object({
+  updated: z.number().int().min(0),
+  failed: z.array(MutateManyFailureSchema),
+});
+
+export type MutateManyResponse = z.infer<typeof MutateManyResponseSchema>;
+
 // schema.* ------------------------------------------------------------------
 
 export const SchemaPositionSchema = z
@@ -314,6 +386,7 @@ export const ACTIONS = {
   reindex: { request: ReindexRequestSchema, response: ReindexResponseSchema },
   "tree.reparent": { request: TreeReparentRequestSchema, response: TreeReparentResponseSchema },
   "source.read": { request: SourceReadRequestSchema, response: SourceReadResponseSchema },
+  mutate_many: { request: MutateManyRequestSchema, response: MutateManyResponseSchema },
 } as const satisfies Record<string, { request: z.ZodType; response: z.ZodType }>;
 
 export type ActionName = keyof typeof ACTIONS;

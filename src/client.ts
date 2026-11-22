@@ -4,6 +4,9 @@ import {
   type ActionResponse,
   ErrorPayloadSchema,
   errKind,
+  type HostAction,
+  type HostActionPayload,
+  type HostActionResponse,
   okKind,
   UdcError,
   unauthenticatedError,
@@ -36,6 +39,9 @@ export interface UdcClientOptions {
   /** Injected in tests; defaults to the global `fetch`. */
   fetch?: typeof fetch;
 }
+
+/** `never` for a built-in action name, so `call`'s by-name escape hatch cannot bypass its types. */
+type NotBuiltin<N extends string> = N extends ActionName ? never : unknown;
 
 export interface CallOptions {
   signal?: AbortSignal;
@@ -72,11 +78,50 @@ export class UdcClient {
     this.fetchImpl = opts.fetch ?? ((input, init) => globalThis.fetch(input, init));
   }
 
-  async call<A extends ActionName>(
+  /** A built-in action (`ACTIONS`), typed per action. */
+  call<A extends ActionName>(
     action: A,
     payload: ActionRequest<A>,
+    opts?: CallOptions,
+  ): Promise<ActionResponse<A>>;
+  /**
+   * A host action (`defineHostAction`): the payload typed from its request
+   * schema, the answer parsed with its response schema (an answer that does
+   * not parse throws `UdcError` `internal`).
+   */
+  call<H extends HostAction>(
+    action: H,
+    payload: HostActionPayload<H>,
+    opts?: CallOptions,
+  ): Promise<HostActionResponse<H>>;
+  /**
+   * Any other action by name, typed by the caller (`call<Res, Req>(name, …)`):
+   * the escape hatch for an action without a shared definition. The answer
+   * is not checked. A built-in name does not match here.
+   */
+  call<Res = unknown, Req = Record<string, unknown>, N extends string = string>(
+    action: N & NotBuiltin<N>,
+    payload: Req,
+    opts?: CallOptions,
+  ): Promise<Res>;
+  async call(
+    target: string | HostAction,
+    payload: unknown,
     opts: CallOptions = {},
-  ): Promise<ActionResponse<A>> {
+  ): Promise<unknown> {
+    const action = typeof target === "string" ? target : target.name;
+    const answer = await this.send(action, payload, opts);
+    if (typeof target === "string") return answer;
+    const parsed = target.response.safeParse(answer);
+    if (!parsed.success) {
+      throw new UdcError("internal", `udc.${action}: the answer does not match its schema`, {
+        issues: parsed.error.issues,
+      });
+    }
+    return parsed.data;
+  }
+
+  private async send(action: string, payload: unknown, opts: CallOptions): Promise<unknown> {
     const extra = typeof this.headers === "function" ? await this.headers() : this.headers;
     const res = await this.fetchImpl(`${this.httpUrl}/udc/${action}`, {
       method: "POST",
@@ -98,7 +143,7 @@ export class UdcClient {
     if (!res.ok) throw new Error(`udc.${action}: HTTP ${res.status}`);
 
     const envelope = (await res.json()) as { kind?: unknown; payload?: unknown };
-    if (envelope.kind === okKind(action)) return envelope.payload as ActionResponse<A>;
+    if (envelope.kind === okKind(action)) return envelope.payload;
     if (envelope.kind === errKind(action)) {
       const err = ErrorPayloadSchema.safeParse(envelope.payload);
       throw err.success
@@ -126,6 +171,11 @@ export class UdcClient {
 
   mutate(req: ActionRequest<"mutate">) {
     return this.call("mutate", req);
+  }
+
+  /** Change or delete many rows in one request (`capabilities.mutate_many`). */
+  mutateMany(req: ActionRequest<"mutate_many">) {
+    return this.call("mutate_many", req);
   }
 
   reindex(req: ActionRequest<"reindex">) {
