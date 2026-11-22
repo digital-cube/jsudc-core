@@ -7,6 +7,12 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-22
+
+What a multi-tenant host needs on the wire: "not signed in" inside the protocol,
+a client for cookie sessions and CSRF, and the `postgres_table` source kind;
+released together with `@jsudc/server` 0.4.0 and `@jsudc/react` 0.4.0.
+
 ### Added
 
 - "Not signed in" as `forbidden` with `details.reason: "unauthenticated"` (no
@@ -18,7 +24,6 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
   (`UdcHeaders`, `() => Record<string, string> | Promise<…>`) the client calls
   before every request; a plain object still works. New option `credentials`
   (`RequestCredentials`), passed to `fetch` when given.
-
 - Source kind `postgres_table` (group `database`): `SOURCE_KINDS`, `sourceGroup`
   and `SourceConfigSchema` know it, with its options schema
   `PostgresTableOptionsSchema` / `PostgresTableOptions` (`table`, `id_column`,
@@ -102,7 +107,8 @@ First tagged version, installed from the GitHub tag.
 - `@jsudc/core/client`: `UdcClient`, the envelope RPC over `fetch`, and
   `UdcError`.
 
-[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/digital-cube/jsudc-core/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/digital-cube/jsudc-core/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/digital-cube/jsudc-core/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/digital-cube/jsudc-core/compare/v0.1.0...v0.1.1
