@@ -154,6 +154,31 @@ and `SourceConfigSchema` parse the `schema.json`, `view.yaml` and `source.yaml`
 files a collection is described by. `isValidFieldName` / `FIELD_NAME_RE` hold
 the field-name rule (`^[a-z][a-z0-9_]{0,62}$`).
 
+`source.yaml` names one of six kinds (`SOURCE_KINDS`), each with its options
+schema: `postgres_jsonb` (one table, every field in `data jsonb`), `memory`,
+`filesystem`, `http_api`, `yaml_menu`, and `postgres_table` (an ordinary
+relational table with typed columns). `sourceGroup(kind)` puts each in the
+sidebar's `database`, `files` or `internet` group; `postgres_table` is
+`database`. Without a file a collection is `postgres_jsonb`.
+
+`PostgresTableOptionsSchema`, the `postgres_table` block. Only identifiers
+(lowercase snake_case, the table-name rule) go in the file; SQL expressions, a
+`FROM` with joins and a base `WHERE` are given to `@jsudc/server`'s
+`PostgresTableSource` in code:
+
+```yaml
+# collections/messages/source.yaml
+kind: postgres_table
+options:
+  table: message # default: the collection name
+  id_column: id # default: id
+  id_type: uuid # uuid (default) | text | integer
+  version_column: version # optional; without it every row is version 1
+  columns: # field -> column; a field without an entry reads its own name
+    subject: subject_line
+  total_count: false # default true; false: no count(*), total is null
+```
+
 ## Lookups and drill-down
 
 A field of type `lookup` stores the **key** of a row of another collection,

@@ -19,6 +19,13 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
   before every request; a plain object still works. New option `credentials`
   (`RequestCredentials`), passed to `fetch` when given.
 
+- Source kind `postgres_table` (group `database`): `SOURCE_KINDS`, `sourceGroup`
+  and `SourceConfigSchema` know it, with its options schema
+  `PostgresTableOptionsSchema` / `PostgresTableOptions` (`table`, `id_column`,
+  `id_type` of `TABLE_ID_TYPES` = `uuid | text | integer`, `version_column`,
+  `columns` field → column name, `total_count`). Table and column names are
+  validated as identifiers. `@jsudc/server`'s `PostgresTableSource` serves it.
+
 ### Changed
 
 - `UdcClient`: an HTTP 401 in front of `/udc` now throws the same `UdcError` as
