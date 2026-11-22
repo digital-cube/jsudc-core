@@ -7,6 +7,42 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-22
+
+What a multi-tenant host needs on the wire: "not signed in" inside the protocol,
+a client for cookie sessions and CSRF, and the `postgres_table` source kind;
+released together with `@jsudc/server` 0.4.0 and `@jsudc/react` 0.4.0.
+
+### Added
+
+- "Not signed in" as `forbidden` with `details.reason: "unauthenticated"` (no
+  new error code, so a 0.3.x client still parses it): `unauthenticatedError()`
+  builds it, `isUnauthenticated(err)` recognises it on a `UdcError` or an error
+  payload, `UNAUTHENTICATED_REASON` is the reason string. The server's request
+  context (`@jsudc/server` `context`) throws it to refuse an anonymous request.
+- `UdcClient` for cookie sessions and CSRF: `headers` may be a function
+  (`UdcHeaders`, `() => Record<string, string> | Promise<…>`) the client calls
+  before every request; a plain object still works. New option `credentials`
+  (`RequestCredentials`), passed to `fetch` when given.
+- Source kind `postgres_table` (group `database`): `SOURCE_KINDS`, `sourceGroup`
+  and `SourceConfigSchema` know it, with its options schema
+  `PostgresTableOptionsSchema` / `PostgresTableOptions` (`table`, `id_column`,
+  `id_type` of `TABLE_ID_TYPES` = `uuid | text | integer`, `version_column`,
+  `columns` field → column name, `total_count`). Table and column names are
+  validated as identifiers. `@jsudc/server`'s `PostgresTableSource` serves it.
+
+### Changed
+
+- `UdcClient`: an HTTP 401 in front of `/udc` now throws the same `UdcError` as
+  the in-protocol "not signed in" (`forbidden`, `details.reason:
+  "unauthenticated"`, plus `details.http_status: 401`), and an HTTP 403 throws
+  `forbidden` with `details.http_status: 403`. Until now both were a plain
+  `Error`, which `@jsudc/react` retried twice and then showed as a transport
+  failure with Retry. This is the one deliberate change an unchanged host can
+  see: a 401 / 403 never produced a working view, so the only difference is
+  that the failure shows at once, as `forbidden`, instead of after two
+  retries. Every other non-200 is still a plain `Error`.
+
 ## [0.3.0] - 2026-11-15
 
 Lookups, level 1, and drill-down from a row (`row_link`), released together
@@ -71,7 +107,8 @@ First tagged version, installed from the GitHub tag.
 - `@jsudc/core/client`: `UdcClient`, the envelope RPC over `fetch`, and
   `UdcError`.
 
-[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/digital-cube/jsudc-core/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/digital-cube/jsudc-core/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/digital-cube/jsudc-core/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/digital-cube/jsudc-core/compare/v0.1.0...v0.1.1

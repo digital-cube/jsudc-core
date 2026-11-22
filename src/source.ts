@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { FieldDef, SchemaDoc } from "./schema.js";
+import { FIELD_NAME_RE, type FieldDef, type SchemaDoc } from "./schema.js";
 
 /*
  * Where a collection's rows come from: `source.yaml` next to its `view.yaml`.
@@ -14,6 +14,7 @@ export const SOURCE_KINDS = [
   "filesystem",
   "http_api",
   "yaml_menu",
+  "postgres_table",
 ] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 export const SourceKindSchema = z.enum(SOURCE_KINDS);
@@ -29,6 +30,7 @@ const GROUP_OF: Record<SourceKind, SourceGroup> = {
   filesystem: "files",
   http_api: "internet",
   yaml_menu: "files",
+  postgres_table: "database",
 };
 
 export function sourceGroup(kind: SourceKind): SourceGroup {
@@ -97,6 +99,35 @@ const FieldPathSchema = z
 export const PostgresJsonbOptionsSchema = z.looseObject({
   /** The table; defaults to the collection name. */
   table: z.string().optional(),
+});
+
+/** A table or column name of `postgres_table`: lowercase snake_case, as a table name of `postgres_jsonb`. */
+const SqlIdentifierSchema = z
+  .string()
+  .regex(FIELD_NAME_RE, "lowercase snake_case, 1-63 chars, starting with a letter");
+
+/** The type of a `postgres_table` id column; the keyset cursor carries the id in this form. */
+export const TABLE_ID_TYPES = ["uuid", "text", "integer"] as const;
+export type TableIdType = (typeof TABLE_ID_TYPES)[number];
+
+/**
+ * An ordinary relational table with typed columns, read through the same
+ * filter, sort and paging compiler as `postgres_jsonb`. In `source.yaml` only
+ * identifiers: a field maps to a column name. SQL expressions, a `FROM` with
+ * joins and a base `WHERE` are given to `PostgresTableSource` in code.
+ */
+export const PostgresTableOptionsSchema = z.looseObject({
+  /** The table; defaults to the collection name. */
+  table: SqlIdentifierSchema.optional(),
+  /** The row id column. */
+  id_column: SqlIdentifierSchema.default("id"),
+  id_type: z.enum(TABLE_ID_TYPES).default("uuid"),
+  /** An integer column served as `__meta.version`; without one every row is version 1. */
+  version_column: SqlIdentifierSchema.optional(),
+  /** Schema field → column name. A field without an entry reads the column of its own name. */
+  columns: z.record(SqlIdentifierSchema, SqlIdentifierSchema).default({}),
+  /** `false`: no `count(*)` next to the page, `total` is `null`. */
+  total_count: z.boolean().default(true),
 });
 
 export const MemoryOptionsSchema = z.looseObject({});
@@ -247,6 +278,7 @@ export type MemoryOptions = z.output<typeof MemoryOptionsSchema>;
 export type FilesystemOptions = z.output<typeof FilesystemOptionsSchema>;
 export type HttpApiOptions = z.output<typeof HttpApiOptionsSchema>;
 export type YamlMenuOptions = z.output<typeof YamlMenuOptionsSchema>;
+export type PostgresTableOptions = z.output<typeof PostgresTableOptionsSchema>;
 
 /** A flat file (`kind` plus the options beside it) is read as `{kind, options}`. */
 function nestOptions(raw: unknown): unknown {
@@ -266,6 +298,15 @@ export const SourceConfigSchema = z.preprocess(
     z.object({ kind: z.literal("filesystem"), options: FilesystemOptionsSchema }),
     z.object({ kind: z.literal("http_api"), options: HttpApiOptionsSchema }),
     z.object({ kind: z.literal("yaml_menu"), options: YamlMenuOptionsSchema }),
+    z.object({
+      kind: z.literal("postgres_table"),
+      options: PostgresTableOptionsSchema.default({
+        id_column: "id",
+        id_type: "uuid",
+        columns: {},
+        total_count: true,
+      }),
+    }),
   ]),
 );
 

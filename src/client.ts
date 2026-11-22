@@ -6,15 +6,33 @@ import {
   errKind,
   okKind,
   UdcError,
+  unauthenticatedError,
 } from "./index.js";
 
 export const MESSAGE_ID_HEADER = "x-udc-message-id";
 
+/**
+ * Headers for every request: a fixed object, or a function the client calls
+ * before each request (sync or async), e.g. to read a CSRF token that changes
+ * with the session.
+ */
+export type UdcHeaders =
+  | Record<string, string>
+  | (() => Record<string, string> | Promise<Record<string, string>>);
+
 export interface UdcClientOptions {
   /** Backend base URL, without `/udc`. `""` means same origin (the Vite proxy). */
   httpUrl: string;
-  /** Sent with every request, e.g. an auth header once there is one. */
-  headers?: Record<string, string>;
+  /**
+   * Sent with every request, e.g. an auth or CSRF header. A function is
+   * evaluated per call, so a token that changes needs no new client.
+   */
+  headers?: UdcHeaders;
+  /**
+   * Passed to `fetch` as `credentials` when given, e.g. `"include"` to send a
+   * cookie session to another origin. Left out, `fetch` uses its default.
+   */
+  credentials?: RequestCredentials;
   /** Injected in tests; defaults to the global `fetch`. */
   fetch?: typeof fetch;
 }
@@ -35,16 +53,22 @@ function messageId(): string {
  * The UDC envelope RPC over HTTP: one `POST ${httpUrl}/udc/<action>` per
  * call. Answers `.ok` with the payload and throws `UdcError` on `.err`.
  * Transport failures (network, a non-200 from a proxy) throw a plain `Error`,
- * which the query client may retry; a `UdcError` it never retries.
+ * which the query client may retry; a `UdcError` it never retries. An HTTP
+ * 401 / 403 from whatever stands in front of `/udc` is a refusal, not a
+ * transport failure: 401 throws the same `UdcError` as an in-protocol
+ * "not signed in" (`forbidden`, `details.reason: "unauthenticated"`), 403 a
+ * plain `forbidden`; both carry `details.http_status`.
  */
 export class UdcClient {
   readonly httpUrl: string;
-  private readonly headers: Record<string, string>;
+  private readonly headers: UdcHeaders;
+  private readonly credentials: RequestCredentials | undefined;
   private readonly fetchImpl: typeof fetch;
 
   constructor(opts: UdcClientOptions) {
     this.httpUrl = opts.httpUrl.replace(/\/+$/, "");
     this.headers = opts.headers ?? {};
+    this.credentials = opts.credentials;
     this.fetchImpl = opts.fetch ?? ((input, init) => globalThis.fetch(input, init));
   }
 
@@ -53,16 +77,24 @@ export class UdcClient {
     payload: ActionRequest<A>,
     opts: CallOptions = {},
   ): Promise<ActionResponse<A>> {
+    const extra = typeof this.headers === "function" ? await this.headers() : this.headers;
     const res = await this.fetchImpl(`${this.httpUrl}/udc/${action}`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
         [MESSAGE_ID_HEADER]: messageId(),
-        ...this.headers,
+        ...extra,
       },
       body: JSON.stringify(payload),
+      ...(this.credentials !== undefined ? { credentials: this.credentials } : {}),
       ...(opts.signal ? { signal: opts.signal } : {}),
     });
+    if (res.status === 401) {
+      throw unauthenticatedError(`udc.${action}: HTTP 401`, { http_status: 401 });
+    }
+    if (res.status === 403) {
+      throw new UdcError("forbidden", `udc.${action}: HTTP 403`, { http_status: 403 });
+    }
     if (!res.ok) throw new Error(`udc.${action}: HTTP ${res.status}`);
 
     const envelope = (await res.json()) as { kind?: unknown; payload?: unknown };
