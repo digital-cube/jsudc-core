@@ -87,7 +87,7 @@ server can dispatch generically and a client is typed per action
 | -------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
 | `collections`              | `{}`                                                                                 | `{ collections }`, what the server serves                         |
 | `describe`                 | `{ collection }`                                                                     | schema, view config, capabilities, filterable fields, source info |
-| `list`                     | `{ collection, filter?, sort?, page? }`                                              | `{ rows, next_cursor, total }`                                    |
+| `list`                     | `{ collection, filter?, sort?, page?, search? }`                                     | `{ rows, next_cursor, total }`                                    |
 | `read`                     | `{ collection, id }`                                                                 | `{ row }`                                                         |
 | `mutate`                   | `{ collection, op: "insert" \| "update" \| "delete", id?, row?, expected_version? }` | `{ row }`                                                         |
 | `schema.add_field`         | `{ collection, name, fielddef, position }`                                           | `{ schema }`                                                      |
@@ -96,6 +96,7 @@ server can dispatch generically and a client is typed per action
 | `reindex`                  | `{ collection, scope, order_field?, gap? }`                                          | `{ updated }`                                                     |
 | `tree.reparent`            | `{ collection, id, parent, order, fields, expected_version? }`                       | `{ row, updated }`                                                |
 | `source.read`              | `{ collection }`                                                                     | the source file as written                                        |
+| `mutate_many`              | `{ collection, op: "update" \| "delete", ids? \| filter?, except_ids?, row? }`       | `{ updated, failed }`                                             |
 
 A row is flat: `{ __meta: { id, version }, ...fields }`. `update` and `delete`
 take `expected_version`; a stale one fails with `version_conflict`. Paging is
@@ -117,6 +118,196 @@ MutateRequestSchema.parse({
   row: { title: "Na Drini ćuprija" },
   expected_version: 3,
 });
+```
+
+### Search answered by the source: `search`
+
+By default the search box is the client's business: `@jsudc/react` turns its
+text into `contains` conditions over `view.search.fields` and ANDs them into
+`filter`. A collection whose source has its own full-text index (a `tsvector`
+in Postgres, OpenSearch beside it) says `capabilities.search: "source"`
+instead. The client then sends the text as `ListRequest.search` and composes
+nothing: the source matches it, narrowed by `filter` and by the caller's row
+scope (a search never widens what a caller may see), and with no `sort` it may
+return the rows in relevance order. Absent means today's behaviour, and a
+source without the capability refuses a `search` with `unsupported_op` rather
+than ignore it. `sourceAnswersSearch(capabilities)` says which way to go;
+`SEARCH_CAPABILITIES` lists the values (only `"source"` for now).
+
+```ts
+import { sourceAnswersSearch, UdcClient } from "@jsudc/core";
+
+const client = new UdcClient({ httpUrl: "" });
+const { capabilities } = await client.describe("mail");
+
+const page = sourceAnswersSearch(capabilities)
+  ? // The source matches and ranks; `filter` keeps the chips only.
+    await client.list({ collection: "mail", search: "invoice -draft", page: { limit: 50 } })
+  : // Today's way: the text becomes `contains` in the filter.
+    await client.list({
+      collection: "mail",
+      filter: { field: "subject", op: "contains", value: "invoice" },
+      page: { limit: 50 },
+    });
+```
+
+### The change feed: `changes`
+
+A server that pushes changes says `capabilities.changes: true` on a
+collection; absent means "poll as today" (`view.refresh_interval_ms`). It is a
+new capability, not `subscribe`, which stays `false`: that one promises
+udc-py's WebSocket subscription actions, which jsudc does not implement.
+
+The feed is one long-lived `GET ${httpUrl}/udc/changes?collections=a,b`
+(`CHANGES_ROUTE`) answered as Server-Sent Events. Each `change` event's data
+is a `ChangeEvent`:
+
+```ts
+type ChangeEvent = {
+  collection: string;
+  op: "insert" | "update" | "delete"; // CHANGE_OPS, the same three as mutate
+  ids?: string[]; // the changed rows you may see; absent: "this collection changed"
+};
+```
+
+It carries no row data: the client refetches under its own scope, so a field
+the caller may not see can never travel through the feed, and the server
+only tells a caller about rows inside the caller's own scope. Without `ids`
+(a burst coalesced into one event, a renumbering, a host that did not say
+which rows) refetch whatever is shown of that collection. There is no replay:
+after a reconnect, refetch, because changes made while the stream was down
+were not sent.
+
+`UdcClient.changes(opts)` reads the stream with `fetch` (not `EventSource`,
+which cannot send headers), so the client's `headers` function (evaluated per
+connection) and `credentials` apply exactly as to every call. It calls
+`onChange` per event, `onOpen({ reconnected })` each time the stream is
+subscribed, and `onError(err, { attempt, delayMs })` before each reconnect;
+a dropped or idle stream (no heartbeat for `idleTimeoutMs`, default 45 s) is
+reopened with exponential backoff and jitter (`minDelayMs`, default 1 s or the
+server's `retry:` hint, up to `maxDelayMs`, default 30 s). It resolves when
+`signal` aborts, and rejects without retrying when the server refuses: HTTP
+401 with the "not signed in" error (`isUnauthenticated`), 403 `forbidden`, 404
+`not_found` (a collection the caller may not see), 400 `validation_error`.
+
+```ts
+import { isUnauthenticated, sourcePushesChanges } from "@jsudc/core";
+import { UdcClient } from "@jsudc/core/client";
+
+const udc = new UdcClient({ httpUrl: "", headers: () => ({ "x-csrftoken": csrf() }) });
+const { capabilities } = await udc.describe("messages");
+
+if (sourcePushesChanges(capabilities)) {
+  const stop = new AbortController();
+  udc
+    .changes({
+      collections: ["messages", "folders"],
+      onChange: (e) => refetch(e.collection, e.ids), // ids absent: refetch it all
+      onOpen: ({ reconnected }) => reconnected && refetchEverything(),
+      signal: stop.signal, // stop.abort() closes the stream
+    })
+    .catch((err) => {
+      if (isUnauthenticated(err)) location.assign("/login");
+    });
+}
+```
+
+`ChangeEventSchema`, `ChangeOpSchema`, `CHANGE_EVENT` / `CHANGES_READY_EVENT`
+(the SSE event names; `ready` carries `{ collections }` once the stream is
+subscribed) and `SseParser` (an incremental event-stream parser, for a host
+that reads the stream itself) are exported as well.
+
+### Many rows at once: `mutate_many`
+
+`mutate_many` changes (`update`, with the patch `row`) or deletes many rows in
+one request, inside the caller's row scope. It names the rows either by `ids`
+(at most `MUTATE_MANY_MAX_IDS`, 10 000) or by `filter` — everything that
+matches, minus `except_ids` ("all in the filter, except these"); exactly one of
+`ids` and `filter`, and `{ and: [] }` is the filter that matches every row.
+There is no `expected_version`: the server bumps the version of every row it
+changes. The answer says how many rows were changed and which of the given ids
+were not (`not_found` for a missing id and for one outside the scope alike). A
+collection that serves it says `capabilities.mutate_many: true`; absent means
+`false`, and a client loops over `mutate` instead.
+
+```ts
+import { filter, UdcClient } from "@jsudc/core";
+
+const client = new UdcClient({ httpUrl: "" });
+
+// The selected rows.
+await client.mutateMany({ collection: "mail", op: "delete", ids: ["m1", "m2"] });
+
+// Everything in the inbox but two, archived in one request.
+const { updated, failed } = await client.mutateMany({
+  collection: "mail",
+  op: "update",
+  filter: filter.eq("folder", "inbox"),
+  except_ids: ["m7", "m9"],
+  row: { archived: true },
+});
+```
+
+### Host actions, typed end to end
+
+A host adds actions of its own with `defineHostAction`: the name and the Zod
+schemas of the request and the response, written once in a module the server
+and the browser both import. `@jsudc/server`'s `Dispatcher.register` takes the
+definition (the handler's payload and return type follow from it, and it
+receives the request context), and `UdcClient.call` takes it too: the payload
+is typed from the request schema, and the answer is parsed with the response
+schema (one that does not parse throws `UdcError` `internal`). A built-in
+action name is refused. `HostActionPayload`, `HostActionRequest`,
+`HostActionReply` and `HostActionResponse` name the four sides.
+
+```ts
+// shared/actions.ts — imported by the server and the browser
+import { defineHostAction } from "@jsudc/core";
+import { z } from "zod";
+
+export const archiveThread = defineHostAction({
+  name: "mail.archive_thread",
+  request: z.object({ thread_id: z.string() }),
+  response: z.object({ archived: z.number().int() }),
+});
+
+// browser
+const { archived } = await client.call(archiveThread, { thread_id: "t42" });
+```
+
+`call` keeps its signature for the built-in actions. For an action without a
+shared definition, a plain name with explicit types is the escape hatch:
+`client.call<{ pong: boolean }, { at: number }>("ping", { at: 1 })` (the answer
+is not checked; a built-in name never falls through to it).
+
+### Action eligibility and what an action does
+
+An `ActionDef` (a view's `row_action_defs` and `bulk_actions`) says when it
+applies with `when`: a boolean, or a filter node. `isActionEligible(def, row)`
+evaluates it for one row and `isActionEligibleForAll(def, rows)` for a
+selection (it must hold for every row; an empty selection is `false`). A filter
+is evaluated with `evaluateFilter` against `row.__meta.state` when the source
+provides one (udc-py's convention), else against the row's own fields; a
+filter it cannot evaluate makes the action ineligible.
+
+Three optional keys say what an action does when the client has no handler
+for it: `set`, the patch it applies (`{ archived: true }`); `action`, the
+server action to call (default the `kind`, `actionServerName(def)`); and
+`confirm`, ask first (`true` or the question; default on for `delete` only,
+`actionConfirms(def)`).
+
+```ts
+import { ActionDefSchema, actionConfirms, filter, isActionEligibleForAll } from "@jsudc/core";
+
+const archive = ActionDefSchema.parse({
+  kind: "archive",
+  label: "Archive",
+  when: filter.eq("archived", false),
+  set: { archived: true },
+});
+
+isActionEligibleForAll(archive, selectedRows); // false as soon as one row is archived
+actionConfirms(archive); // false; a "delete" action would ask
 ```
 
 ## Filter DSL

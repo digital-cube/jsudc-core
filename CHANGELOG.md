@@ -7,6 +7,52 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Action `mutate_many`: change (`update`, with the patch `row`) or delete many
+  rows in one request, by `ids` (at most `MUTATE_MANY_MAX_IDS`, 10 000) or by
+  `filter` minus `except_ids`, inside the caller's row scope; no
+  `expected_version`. It answers `{ updated, failed: [{ id, code, message? }] }`.
+  `MutateManyRequestSchema`, `MutateManyResponseSchema`,
+  `MutateManyFailureSchema`, `MUTATE_MANY_OPS`; in `ACTIONS` (so in
+  `ACTION_NAMES`), and `UdcClient.mutateMany(req)`.
+- Capability `mutate_many` (optional; absent means `false`).
+- Host actions typed end to end: `defineHostAction({ name, request, response })`
+  returns a `HostAction` that `UdcClient.call(action, payload)` accepts (payload
+  typed from the request schema, the answer parsed with the response schema)
+  and `@jsudc/server`'s `Dispatcher.register` accepts. `isHostAction`,
+  `HOST_ACTION_NAME_RE`, and the types `HostActionPayload`, `HostActionRequest`,
+  `HostActionReply`, `HostActionResponse`. `UdcClient.call` also takes any
+  other name with explicit types (`call<Res, Req>(name, payload)`); the
+  built-in actions stay typed as before.
+- Action eligibility: `isActionEligible(def, row)` and
+  `isActionEligibleForAll(def, rows)` evaluate an `ActionDef`'s `when` (a
+  boolean, or a filter over `row.__meta.state` when the row has one, else over
+  its fields); `eligibilitySubject(row)` says which.
+- `ActionDef` gains three optional, typed keys: `set` (the patch the action
+  applies), `action` (the server action to call; `actionServerName(def)`
+  defaults it to the `kind`) and `confirm` (`true` or the question to ask;
+  `actionConfirms(def)` defaults it to on for `delete`).
+- Search answered by the source: `ListRequest.search` (optional), the text of
+  the search box for a source that matches it itself, and the capability
+  `search` (optional; its only value is `"source"`, absent means the client
+  composes `contains` as before). `SEARCH_CAPABILITIES`,
+  `SearchCapabilitySchema`, the type `SearchCapability`, and
+  `sourceAnswersSearch(capabilities)`.
+- The change feed (wire side): the capability `changes` (optional; absent
+  means poll, `subscribe` stays `false`), the event `ChangeEventSchema` /
+  `ChangeEvent` (`{ collection, op, ids? }`, no row data), `CHANGE_OPS` /
+  `ChangeOpSchema` (`insert`, `update`, `delete`), `CHANGES_ROUTE`
+  (`/udc/changes`), the SSE event names `CHANGE_EVENT` and
+  `CHANGES_READY_EVENT` with `ChangesReadySchema`, `sourcePushesChanges(capabilities)`
+  and `SseParser`, an incremental Server-Sent Events parser.
+  `UdcClient.changes({ collections, onChange, onOpen?, onError?, signal?,
+  minDelayMs?, maxDelayMs?, idleTimeoutMs? })` reads the stream with `fetch`
+  (so `headers` and `credentials` apply), reconnects with backoff, reports
+  `reconnected` so the caller can refetch, and stops on abort or a refusal
+  (401 unauthenticated, 403, 404, 400). The type `ChangesOptions` from
+  `@jsudc/core/client`.
+
 ## [0.4.0] - 2026-11-22
 
 What a multi-tenant host needs on the wire: "not signed in" inside the protocol,

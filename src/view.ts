@@ -201,6 +201,19 @@ export const ActionDefSchema = z.looseObject({
   when: z.union([FilterNodeSchema, z.boolean()]).optional(),
   icon: z.string().optional(),
   variant: z.enum(["default", "outline", "destructive"]).optional(),
+  /**
+   * The patch the action applies to each row it runs on (`{ archived: true }`):
+   * a client without a handler of its own sends it as `mutate` / `mutate_many`
+   * `update`. Absent: the action writes no patch of its own.
+   */
+  set: z.record(z.string(), z.unknown()).optional(),
+  /** The server action a client calls to run it; default: the `kind` (`actionServerName`). */
+  action: z.string().min(1).optional(),
+  /**
+   * Ask the user first: `true`, or the question to ask. Default: on for
+   * `delete`, off for every other kind (`actionConfirms`).
+   */
+  confirm: z.union([z.boolean(), z.string().min(1)]).optional(),
 });
 
 export type ActionDef = z.infer<typeof ActionDefSchema>;
