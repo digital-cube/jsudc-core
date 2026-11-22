@@ -51,8 +51,15 @@ builds it, and `isUnauthenticated(err)` recognises it on a `UdcError` or on a
 raw error payload:
 
 ```json
-{ "kind": "udc.list.err", "id": "…",
-  "payload": { "code": "forbidden", "message": "not signed in", "details": { "reason": "unauthenticated" } } }
+{
+  "kind": "udc.list.err",
+  "id": "…",
+  "payload": {
+    "code": "forbidden",
+    "message": "not signed in",
+    "details": { "reason": "unauthenticated" }
+  }
+}
 ```
 
 ```ts
@@ -62,8 +69,12 @@ import { isUnauthenticated, unauthenticatedError } from "@jsudc/core";
 if (!session) throw unauthenticatedError();
 
 // client side
-try { await client.list({ collection: "message" }); }
-catch (err) { if (isUnauthenticated(err)) location.assign("/login"); else throw err; }
+try {
+  await client.list({ collection: "message" });
+} catch (err) {
+  if (isUnauthenticated(err)) location.assign("/login");
+  else throw err;
+}
 ```
 
 ## Actions
