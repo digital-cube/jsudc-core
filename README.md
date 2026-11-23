@@ -345,6 +345,20 @@ and `SourceConfigSchema` parse the `schema.json`, `view.yaml` and `source.yaml`
 files a collection is described by. `isValidFieldName` / `FIELD_NAME_RE` hold
 the field-name rule (`^[a-z][a-z0-9_]{0,62}$`).
 
+A view's **default sort** (0.5.2) is the order its rows come in until the user
+picks one: `default_sort`, a list of sort keys (`dir` defaults to `asc`).
+`@jsudc/react` sends it as the list's `sort` while the URL state has none,
+shows it in the headers and keeps it out of the URL; while a search answered by
+the source is typed it steps aside, so the rows come best match first.
+`defaultSortProblems(sort, schema)` names a key whose field the schema lacks
+(the server refuses such a view when it loads):
+
+```yaml
+# collections/messages/view.yaml
+default_sort:
+  - { field: received_at, dir: desc }
+```
+
 `source.yaml` names one of six kinds (`SOURCE_KINDS`), each with its options
 schema: `postgres_jsonb` (one table, every field in `data jsonb`), `memory`,
 `filesystem`, `http_api`, `yaml_menu`, and `postgres_table` (an ordinary

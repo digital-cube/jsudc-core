@@ -7,6 +7,15 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `default_sort` in `ViewConfigSchema`: the order a view's rows come in until
+  the user picks one, a list of `SortKey`s. Optional; a view without it parses
+  exactly as before. `@jsudc/react` applies it (see its changelog).
+- `defaultSortProblems(sort, schema)`: the keys of a `default_sort` whose field
+  the schema lacks or has deleted, or that name a field twice. `@jsudc/server`
+  refuses such a view when it loads the registry.
+
 ## [0.5.0] - 2026-11-22
 
 What the next features of a multi-tenant host stand on: many rows changed in one
