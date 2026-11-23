@@ -43,7 +43,7 @@ export const COLUMN_COLORS = [
 export const ColumnColorSchema = z.enum(COLUMN_COLORS);
 export type ColumnColor = z.infer<typeof ColumnColorSchema>;
 
-/** A column `width` that takes the rest of the table's width (0.5.2). */
+/** A column `width` that takes the rest of the table's width (0.6.0). */
 export const COLUMN_WIDTH_FILL = "fill" as const;
 
 export const ColumnConfigSchema = z
@@ -54,25 +54,25 @@ export const ColumnConfigSchema = z
     pin: z.enum(["left", "right"]).nullable().optional(),
     editable: z.boolean().optional(),
     /**
-     * Pixels, or `fill` (0.5.2): the column takes what the table's pane has left
+     * Pixels, or `fill` (0.6.0): the column takes what the table's pane has left
      * after the fixed columns, never less than `min_width`. Several `fill`
      * columns share it by `grow`. Absent: the view's `default_column_width`.
      */
     width: z.union([z.number().positive(), z.literal(COLUMN_WIDTH_FILL)]).optional(),
     /**
      * A `fill` column's share of the free width against the other `fill`
-     * columns (0.5.2); default 1. Only with `width: fill`.
+     * columns (0.6.0); default 1. Only with `width: fill`.
      */
     grow: z.number().positive().optional(),
     /**
-     * The narrowest a `fill` column gets (0.5.2), in pixels; below it the table
+     * The narrowest a `fill` column gets (0.6.0), in pixels; below it the table
      * scrolls sideways. Default: the view's `default_column_width`. Only with
      * `width: fill`.
      */
     min_width: z.number().positive().optional(),
     /**
      * The column is left out while the table's own width (its pane, not the
-     * window) is under this many pixels (0.5.2), so a narrow pane drops the
+     * window) is under this many pixels (0.6.0), so a narrow pane drops the
      * columns it has no room for instead of scrolling sideways.
      */
     hide_below: z.number().positive().optional(),
@@ -93,7 +93,7 @@ export const ColumnConfigSchema = z
     color: ColumnColorSchema.optional(),
     bg: ColumnColorSchema.optional(),
     /**
-     * `true`: the field is not a column (0.5.2). It stays in the schema, the
+     * `true`: the field is not a column (0.6.0). It stays in the schema, the
      * rows (so a cell reads it from `CellProps.row`), the filter builder and
      * search; `describe` leaves the column out of `view.columns`, so no
      * renderer shows it and it is not a cards' default title. Listing a field
@@ -103,7 +103,7 @@ export const ColumnConfigSchema = z
     hidden: z.boolean().optional(),
     /**
      * `false`: the column's header is not a sort button, even when the source
-     * sorts on the field (0.5.2). It cannot make a field sortable that the
+     * sorts on the field (0.6.0). It cannot make a field sortable that the
      * source does not sort (`describe.sortable`); the server does not read it.
      */
     sortable: z.boolean().optional(),
@@ -125,7 +125,7 @@ export const ColumnConfigSchema = z
 
 export type ColumnConfig = z.infer<typeof ColumnConfigSchema>;
 
-/** Whether a column takes the rest of the table's width (`width: fill`, 0.5.2). */
+/** Whether a column takes the rest of the table's width (`width: fill`, 0.6.0). */
 export function isFillColumn(column: Pick<ColumnConfig, "width">): boolean {
   return column.width === COLUMN_WIDTH_FILL;
 }
@@ -300,7 +300,7 @@ export const ViewConfigSchema = z
     available_renderers: z.array(z.string().min(1)).default(["table"]),
     columns: z.array(ColumnConfigSchema).default([]),
     /**
-     * Which schema fields are table columns (0.5.2). `all` (the default):
+     * Which schema fields are table columns (0.6.0). `all` (the default):
      * `columns` plus a default column for every live field it does not list,
      * so a field added at runtime shows at once. `listed`: `columns` only.
      */
@@ -311,7 +311,7 @@ export const ViewConfigSchema = z
     default_column_width: z.number().positive().default(160),
     search: SearchConfigSchema.optional(),
     /**
-     * The order the rows come in when the user has picked none (0.5.2): the
+     * The order the rows come in when the user has picked none (0.6.0): the
      * client sends it as the list's `sort` while its URL state has no `sort`,
      * shows it in the headers, and does not write it into the URL. While a
      * search answered by the source is typed it steps aside, so the rows come

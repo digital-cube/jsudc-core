@@ -17,7 +17,7 @@ in Angular alike.
 ```sh
 npm install @jsudc/core
 # or straight from a GitHub tag:
-npm install github:digital-cube/jsudc-core#v0.5.0
+npm install github:digital-cube/jsudc-core#v0.6.0
 ```
 
 Two entry points:
@@ -348,7 +348,7 @@ the field-name rule (`^[a-z][a-z0-9_]{0,62}$`).
 A view's table columns are `columns` plus a default column for every live
 schema field it does not list. To keep a field out of the table while the rows,
 the filter builder and every cell's `row` still carry it, mark its column
-`hidden: true`, or set `columns_mode: listed` for `columns` only (0.5.2):
+`hidden: true`, or set `columns_mode: listed` for `columns` only (0.6.0):
 
 ```yaml
 # collections/mail_messages/view.yaml
@@ -359,7 +359,7 @@ columns:
   - { field: folder_id, hidden: true } # with columns_mode: all, the per-field way
 ```
 
-A column's **width** is pixels, or `fill` (0.5.2): a `fill` column takes what
+A column's **width** is pixels, or `fill` (0.6.0): a `fill` column takes what
 the table's pane has left after the fixed columns, never less than its
 `min_width` (default: the view's `default_column_width`), and several share
 it by `grow` (default 1); `grow` and `min_width` on a fixed column fail at
@@ -375,7 +375,7 @@ columns:
   - { field: date, width: 84, align: right }
 ```
 
-A view's **default sort** (0.5.2) is the order its rows come in until the user
+A view's **default sort** (0.6.0) is the order its rows come in until the user
 picks one: `default_sort`, a list of sort keys (`dir` defaults to `asc`).
 `@jsudc/react` sends it as the list's `sort` while the URL state has none,
 shows it in the headers and keeps it out of the URL; while a search answered by
@@ -389,7 +389,7 @@ default_sort:
   - { field: received_at, dir: desc }
 ```
 
-**Sortable fields** (0.5.2): `describe.sortable.fields` lists the fields the
+**Sortable fields** (0.6.0): `describe.sortable.fields` lists the fields the
 source sorts on; a `list` whose `sort` names any other is refused with
 `validation_error`. Absent (an older server), every field sorts.
 `sortableField(describe, field)` reads it. A view can also take the sort button

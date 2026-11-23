@@ -7,6 +7,14 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-23
+
+What a mail client's list views asked for after 0.5.0: a view's own default
+order, columns kept out of the table, the fields a source sorts on, column
+widths that follow the pane; released together with `@jsudc/server` 0.6.0 and
+`@jsudc/react` 0.6.0. Every addition is optional: a 0.5.0 payload or view
+parses exactly as before.
+
 ### Added
 
 - `sortable` in `DescribeResponseSchema` (`SortableSchema`, `{ fields }`): the
@@ -16,7 +24,6 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
   `@jsudc/react` draws a plain header for a field not in it.
 - `sortable: false` on a column config (`ColumnConfigSchema`): the header is not
   a sort button even when the source sorts on the field. Display only.
-
 - `hidden: true` on a column config (`ColumnConfigSchema`): the field is not a
   table column, and `describe` adds no default column for it; it stays in the
   schema, the rows, the filter builder and search.
