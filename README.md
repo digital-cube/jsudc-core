@@ -357,6 +357,8 @@ columns:
   - { field: subject, render: mail_subject, width: 520 } # the cell reads row.snippet
   - { field: date, width: 110 }
   - { field: folder_id, hidden: true } # with columns_mode: all, the per-field way
+```
+
 A view's **default sort** (0.5.2) is the order its rows come in until the user
 picks one: `default_sort`, a list of sort keys (`dir` defaults to `asc`).
 `@jsudc/react` sends it as the list's `sort` while the URL state has none,
