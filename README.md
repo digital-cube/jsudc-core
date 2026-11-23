@@ -17,7 +17,7 @@ in Angular alike.
 ```sh
 npm install @jsudc/core
 # or straight from a GitHub tag:
-npm install github:digital-cube/jsudc-core#v0.7.0
+npm install github:digital-cube/jsudc-core#v0.8.0
 ```
 
 Two entry points:
@@ -456,7 +456,7 @@ A field of type `lookup` stores the **key** of a row of another collection,
 ```
 
 `LookupDefSchema` is `{ collection, key_field?, label_field, extra_fields?,
-color_field? }`. `color_field` is a field of the target whose value colours the
+color_field? }`. `color_field` (0.8.0) is a field of the target whose value colours the
 key's chip: a named palette value (a tone such as `danger`, or a name the host's
 theme maps, such as `red`), never a raw colour.
 Without `key_field` the key is the target's row id (`__meta.id`). A key is a
