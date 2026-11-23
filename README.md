@@ -39,10 +39,12 @@ body. The answer is an envelope whose `kind` says how it went:
 
 `requestKind`, `okKind`, `errKind` and `parseKind` build and split the kinds.
 An error payload carries one of a closed set of codes (`not_found`,
-`validation_error`, `version_conflict`, `forbidden`, `unsupported_op`,
+`validation_error`, `version_conflict`, `forbidden`, `unsupported_op`, `busy`,
 `internal`); `UdcError` is the matching exception, with `toPayload()` and
 `UdcError.fromPayload()` to cross the wire, and `isUdcError` /
-`isVersionConflict` as guards.
+`isVersionConflict` / `isBusy` as guards. `busy` means the data was locked by
+another writer for longer than the server waits (a SQLite file another process
+is writing): nothing was written, and the same request may be retried later.
 
 "Not signed in" is not a code of its own: it is `forbidden` with
 `details.reason: "unauthenticated"`, so a client that predates it still parses

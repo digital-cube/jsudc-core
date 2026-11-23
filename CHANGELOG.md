@@ -14,6 +14,11 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
   `PostgresTableOptionsSchema` plus `database`, the name of the handle the host
   registered (default `DEFAULT_SQLITE_DATABASE`, `main`). `@jsudc/server`
   serves it with `SqliteTableSource` from `@jsudc/server/sqlite`.
+- The error code `busy` (and the guard `isBusy`): the data was locked by another
+  writer for longer than the server waits, e.g. another process holding a SQLite
+  file's write lock past its busy timeout. Nothing was written; the request may
+  be retried. A client older than this code reads such a reply as a malformed
+  error payload (`internal`).
 
 ## [0.6.0] - 2026-11-23
 

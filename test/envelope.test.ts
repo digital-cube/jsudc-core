@@ -3,6 +3,7 @@ import {
   ERROR_CODES,
   ErrorPayloadSchema,
   errKind,
+  isBusy,
   isVersionConflict,
   okKind,
   parseKind,
@@ -31,6 +32,7 @@ describe("envelope", () => {
   it("has the closed error code set", () => {
     expect([...ERROR_CODES].sort()).toEqual(
       [
+        "busy",
         "forbidden",
         "internal",
         "not_found",
@@ -49,6 +51,10 @@ describe("envelope", () => {
     expect(err).toBeInstanceOf(Error);
     expect(err.name).toBe("UdcError");
     expect(isVersionConflict(err)).toBe(true);
+    expect(isBusy(err)).toBe(false);
+    expect(isBusy(new UdcError("busy", "locked", { database: "main", waited_ms: 5000 }))).toBe(
+      true,
+    );
     const payload = ErrorPayloadSchema.parse(err.toPayload());
     expect(payload).toEqual({
       code: "version_conflict",
