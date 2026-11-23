@@ -64,8 +64,8 @@ type SchemaOf = (collection: string) => Pick<SchemaDoc, "fields"> | undefined;
 /**
  * Every lookup field of `schema` checked against its target, one message per
  * problem, `<collection>.<field>: …`: a lookup without a target block, a
- * target that is not served, and a `label_field`, `key_field` or
- * `extra_fields` entry the target's schema lacks. `schemaOf` answers the
+ * target that is not served, and a `label_field`, `key_field`,
+ * `extra_fields` entry or `color_field` the target's schema lacks. `schemaOf` answers the
  * schema of a served collection (`undefined` when it is not served).
  */
 export function lookupProblems(
@@ -100,6 +100,7 @@ export function lookupFieldProblems(
     lookup.label_field,
     ...(lookup.key_field !== undefined && lookup.key_field !== ROW_ID ? [lookup.key_field] : []),
     ...(lookup.extra_fields ?? []),
+    ...(lookup.color_field !== undefined ? [lookup.color_field] : []),
   ];
   return names
     .filter((name) => !live(target, name))
