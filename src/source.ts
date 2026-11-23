@@ -15,6 +15,7 @@ export const SOURCE_KINDS = [
   "http_api",
   "yaml_menu",
   "postgres_table",
+  "sqlite_table",
 ] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 export const SourceKindSchema = z.enum(SOURCE_KINDS);
@@ -31,6 +32,7 @@ const GROUP_OF: Record<SourceKind, SourceGroup> = {
   http_api: "internet",
   yaml_menu: "files",
   postgres_table: "database",
+  sqlite_table: "database",
 };
 
 export function sourceGroup(kind: SourceKind): SourceGroup {
@@ -128,6 +130,20 @@ export const PostgresTableOptionsSchema = z.looseObject({
   columns: z.record(SqlIdentifierSchema, SqlIdentifierSchema).default({}),
   /** `false`: no `count(*)` next to the page, `total` is `null`. */
   total_count: z.boolean().default(true),
+});
+
+/** The handle a `sqlite_table` collection reads when its `source.yaml` names none. */
+export const DEFAULT_SQLITE_DATABASE = "main";
+
+/**
+ * One table of a SQLite database file, with typed columns: the options of
+ * `postgres_table`, plus `database`, the name under which the host
+ * registered the file's handle with the server (`SourceDeps.sqlite`). The
+ * file itself is never named here: the host opens it.
+ */
+export const SqliteTableOptionsSchema = PostgresTableOptionsSchema.extend({
+  /** The registered handle (one SQLite database file); default `main`. */
+  database: SqlIdentifierSchema.default(DEFAULT_SQLITE_DATABASE),
 });
 
 export const MemoryOptionsSchema = z.looseObject({});
@@ -279,6 +295,7 @@ export type FilesystemOptions = z.output<typeof FilesystemOptionsSchema>;
 export type HttpApiOptions = z.output<typeof HttpApiOptionsSchema>;
 export type YamlMenuOptions = z.output<typeof YamlMenuOptionsSchema>;
 export type PostgresTableOptions = z.output<typeof PostgresTableOptionsSchema>;
+export type SqliteTableOptions = z.output<typeof SqliteTableOptionsSchema>;
 
 /** A flat file (`kind` plus the options beside it) is read as `{kind, options}`. */
 function nestOptions(raw: unknown): unknown {
@@ -305,6 +322,16 @@ export const SourceConfigSchema = z.preprocess(
         id_type: "uuid",
         columns: {},
         total_count: true,
+      }),
+    }),
+    z.object({
+      kind: z.literal("sqlite_table"),
+      options: SqliteTableOptionsSchema.default({
+        id_column: "id",
+        id_type: "uuid",
+        columns: {},
+        total_count: true,
+        database: DEFAULT_SQLITE_DATABASE,
       }),
     }),
   ]),

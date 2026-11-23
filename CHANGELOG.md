@@ -7,6 +7,14 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `sqlite_table` in `SOURCE_KINDS` (group `database`): one table of a SQLite
+  file with typed columns. `SqliteTableOptionsSchema` is
+  `PostgresTableOptionsSchema` plus `database`, the name of the handle the host
+  registered (default `DEFAULT_SQLITE_DATABASE`, `main`). `@jsudc/server`
+  serves it with `SqliteTableSource` from `@jsudc/server/sqlite`.
+
 ## [0.6.0] - 2026-11-23
 
 What a mail client's list views asked for after 0.5.0: a view's own default
