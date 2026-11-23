@@ -65,9 +65,22 @@ export const ColumnConfigSchema = z.looseObject({
   transform: z.union([z.string(), z.array(z.string())]).optional(),
   color: ColumnColorSchema.optional(),
   bg: ColumnColorSchema.optional(),
+  /**
+   * `true`: the field is not a column (0.5.2). It stays in the schema, the
+   * rows (so a cell reads it from `CellProps.row`), the filter builder and
+   * search; `describe` leaves the column out of `view.columns`, so no
+   * renderer shows it and it is not a cards' default title. Listing a field
+   * as hidden also keeps `describe` from adding its default column. Not to be
+   * confused with a row scope's hidden fields, which leave the schema too.
+   */
+  hidden: z.boolean().optional(),
 });
 
 export type ColumnConfig = z.infer<typeof ColumnConfigSchema>;
+
+export const COLUMNS_MODES = ["all", "listed"] as const;
+export const ColumnsModeSchema = z.enum(COLUMNS_MODES);
+export type ColumnsMode = z.infer<typeof ColumnsModeSchema>;
 
 export const SearchConfigSchema = z.looseObject({
   fields: z.array(z.string()),
@@ -234,6 +247,12 @@ export const ViewConfigSchema = z
     default_renderer: z.string().min(1).default("table"),
     available_renderers: z.array(z.string().min(1)).default(["table"]),
     columns: z.array(ColumnConfigSchema).default([]),
+    /**
+     * Which schema fields are table columns (0.5.2). `all` (the default):
+     * `columns` plus a default column for every live field it does not list,
+     * so a field added at runtime shows at once. `listed`: `columns` only.
+     */
+    columns_mode: ColumnsModeSchema.optional(),
     page_size_default: z.number().int().min(1).max(1000).default(50),
     pagination: z.enum(["infinite", "pages"]).default("infinite"),
     row_height: z.number().positive().optional(),

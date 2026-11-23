@@ -7,6 +7,15 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `hidden: true` on a column config (`ColumnConfigSchema`): the field is not a
+  table column, and `describe` adds no default column for it; it stays in the
+  schema, the rows, the filter builder and search.
+- `columns_mode` on a view (`ColumnsModeSchema`, `COLUMNS_MODES`): `all` (the
+  behaviour so far, and the default) or `listed`, a table of the view's
+  `columns` only.
+
 ## [0.5.0] - 2026-11-22
 
 What the next features of a multi-tenant host stand on: many rows changed in one

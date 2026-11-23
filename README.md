@@ -345,6 +345,20 @@ and `SourceConfigSchema` parse the `schema.json`, `view.yaml` and `source.yaml`
 files a collection is described by. `isValidFieldName` / `FIELD_NAME_RE` hold
 the field-name rule (`^[a-z][a-z0-9_]{0,62}$`).
 
+A view's table columns are `columns` plus a default column for every live
+schema field it does not list. To keep a field out of the table while the rows,
+the filter builder and every cell's `row` still carry it, mark its column
+`hidden: true`, or set `columns_mode: listed` for `columns` only (0.5.2):
+
+```yaml
+# collections/mail_messages/view.yaml
+columns_mode: listed # all (default) | listed
+columns:
+  - { field: subject, render: mail_subject, width: 520 } # the cell reads row.snippet
+  - { field: date, width: 110 }
+  - { field: folder_id, hidden: true } # with columns_mode: all, the per-field way
+```
+
 `source.yaml` names one of six kinds (`SOURCE_KINDS`), each with its options
 schema: `postgres_jsonb` (one table, every field in `data jsonb`), `memory`,
 `filesystem`, `http_api`, `yaml_menu`, and `postgres_table` (an ordinary
