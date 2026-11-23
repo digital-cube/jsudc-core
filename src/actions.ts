@@ -132,9 +132,9 @@ export const SourceInfoSchema = z.looseObject({
 export type SourceInfo = z.infer<typeof SourceInfoSchema>;
 
 /**
- * The fields a client may sort the collection by (0.5.2): the source sorts on
+ * The fields a client may sort the collection by (0.6.0): the source sorts on
  * these and refuses any other in `ListRequest.sort` with `validation_error`.
- * Absent (a server before 0.5.2): every live field.
+ * Absent (a server before 0.6.0): every live field.
  */
 export const SortableSchema = z.object({ fields: z.array(z.string().min(1)) });
 
@@ -163,7 +163,7 @@ export const DescribeResponseSchema = z.object({
   schema: SchemaDocSchema,
   view: ViewConfigSchema,
   filterable: z.object({ fields: z.array(FilterableFieldSchema) }),
-  /** The fields the source sorts on (0.5.2); absent: every field. */
+  /** The fields the source sorts on (0.6.0); absent: every field. */
   sortable: SortableSchema.optional(),
 });
 
