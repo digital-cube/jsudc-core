@@ -4,7 +4,8 @@ import { ChartOptionsSchema } from "./chart.js";
 import { FilterNodeSchema, FilterOpSchema } from "./filter.js";
 import { KanbanOptionsSchema } from "./kanban.js";
 import { MapOptionsSchema } from "./map.js";
-import { FieldNameSchema } from "./schema.js";
+import { SortKeySchema } from "./query.js";
+import { FieldNameSchema, type SchemaDoc } from "./schema.js";
 import { TreeOptionsSchema } from "./tree.js";
 
 // Every block is loose: dclabs views carry renderer-specific option blocks
@@ -258,6 +259,15 @@ export const ViewConfigSchema = z
     row_height: z.number().positive().optional(),
     default_column_width: z.number().positive().default(160),
     search: SearchConfigSchema.optional(),
+    /**
+     * The order the rows come in when the user has picked none (0.5.2): the
+     * client sends it as the list's `sort` while its URL state has no `sort`,
+     * shows it in the headers, and does not write it into the URL. While a
+     * search answered by the source is typed it steps aside, so the rows come
+     * best match first. The server checks the names when it loads the
+     * registry (`defaultSortProblems`).
+     */
+    default_sort: z.array(SortKeySchema).optional(),
     filters: z.array(FilterChipConfigSchema).optional(),
     filterable: FilterableConfigSchema.optional(),
     card_options: CardOptionsSchema.optional(),
@@ -306,3 +316,23 @@ export const ViewConfigSchema = z
 
 export type ViewConfigInput = z.input<typeof ViewConfigSchema>;
 export type ViewConfig = z.output<typeof ViewConfigSchema>;
+
+/**
+ * What is wrong with a view's `default_sort` against its schema: a field the
+ * schema lacks (or has deleted), or a field named twice. Empty when it fits.
+ */
+export function defaultSortProblems(
+  sort: readonly { field: string }[],
+  schema: SchemaDoc,
+): string[] {
+  const problems: string[] = [];
+  const seen = new Set<string>();
+  sort.forEach(({ field }, i) => {
+    const def = schema.fields[field];
+    if (!def || def.deleted)
+      problems.push(`default_sort[${i}]: ${field} is not a field of the schema`);
+    else if (seen.has(field)) problems.push(`default_sort[${i}]: ${field} is named twice`);
+    seen.add(field);
+  });
+  return problems;
+}

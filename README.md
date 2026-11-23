@@ -357,6 +357,18 @@ columns:
   - { field: subject, render: mail_subject, width: 520 } # the cell reads row.snippet
   - { field: date, width: 110 }
   - { field: folder_id, hidden: true } # with columns_mode: all, the per-field way
+A view's **default sort** (0.5.2) is the order its rows come in until the user
+picks one: `default_sort`, a list of sort keys (`dir` defaults to `asc`).
+`@jsudc/react` sends it as the list's `sort` while the URL state has none,
+shows it in the headers and keeps it out of the URL; while a search answered by
+the source is typed it steps aside, so the rows come best match first.
+`defaultSortProblems(sort, schema)` names a key whose field the schema lacks
+(the server refuses such a view when it loads):
+
+```yaml
+# collections/messages/view.yaml
+default_sort:
+  - { field: received_at, dir: desc }
 ```
 
 `source.yaml` names one of six kinds (`SOURCE_KINDS`), each with its options
