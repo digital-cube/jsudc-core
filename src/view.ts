@@ -43,41 +43,86 @@ export const COLUMN_COLORS = [
 export const ColumnColorSchema = z.enum(COLUMN_COLORS);
 export type ColumnColor = z.infer<typeof ColumnColorSchema>;
 
-export const ColumnConfigSchema = z.looseObject({
-  field: z.string().min(1),
-  /** Column identity when one field backs two columns; defaults to `field`. */
-  id: z.string().min(1).optional(),
-  pin: z.enum(["left", "right"]).nullable().optional(),
-  editable: z.boolean().optional(),
-  width: z.number().positive().optional(),
-  /**
-   * Open: `text | number_format | bool | date | datetime | bytes | badge |
-   * icon | sparkline | heading_glyph`. `number_format` takes
-   * `render_options {precision (or decimals), suffix}`; `bytes` reads a
-   * number as a size (`1.2 KB`); `badge` draws a pill whose tone is
-   * `render_options.map[value]` (else `render_options.default`);
-   * `sparkline` draws a number array as a line (`render_options {width,
-   * height}`); `heading_glyph` an arrow turned by degrees from north.
-   */
-  render: z.string().optional(),
-  render_options: z.record(z.string(), z.unknown()).optional(),
-  align: z.enum(["left", "right", "center"]).optional(),
-  /** Open: `titlecase`, `truncate:N`, `date_format:PATTERN`, or a pipeline of them. */
-  transform: z.union([z.string(), z.array(z.string())]).optional(),
-  color: ColumnColorSchema.optional(),
-  bg: ColumnColorSchema.optional(),
-  /**
-   * `true`: the field is not a column (0.5.2). It stays in the schema, the
-   * rows (so a cell reads it from `CellProps.row`), the filter builder and
-   * search; `describe` leaves the column out of `view.columns`, so no
-   * renderer shows it and it is not a cards' default title. Listing a field
-   * as hidden also keeps `describe` from adding its default column. Not to be
-   * confused with a row scope's hidden fields, which leave the schema too.
-   */
-  hidden: z.boolean().optional(),
-});
+/** A column `width` that takes the rest of the table's width (0.5.2). */
+export const COLUMN_WIDTH_FILL = "fill" as const;
+
+export const ColumnConfigSchema = z
+  .looseObject({
+    field: z.string().min(1),
+    /** Column identity when one field backs two columns; defaults to `field`. */
+    id: z.string().min(1).optional(),
+    pin: z.enum(["left", "right"]).nullable().optional(),
+    editable: z.boolean().optional(),
+    /**
+     * Pixels, or `fill` (0.5.2): the column takes what the table's pane has left
+     * after the fixed columns, never less than `min_width`. Several `fill`
+     * columns share it by `grow`. Absent: the view's `default_column_width`.
+     */
+    width: z.union([z.number().positive(), z.literal(COLUMN_WIDTH_FILL)]).optional(),
+    /**
+     * A `fill` column's share of the free width against the other `fill`
+     * columns (0.5.2); default 1. Only with `width: fill`.
+     */
+    grow: z.number().positive().optional(),
+    /**
+     * The narrowest a `fill` column gets (0.5.2), in pixels; below it the table
+     * scrolls sideways. Default: the view's `default_column_width`. Only with
+     * `width: fill`.
+     */
+    min_width: z.number().positive().optional(),
+    /**
+     * The column is left out while the table's own width (its pane, not the
+     * window) is under this many pixels (0.5.2), so a narrow pane drops the
+     * columns it has no room for instead of scrolling sideways.
+     */
+    hide_below: z.number().positive().optional(),
+    /**
+     * Open: `text | number_format | bool | date | datetime | bytes | badge |
+     * icon | sparkline | heading_glyph`. `number_format` takes
+     * `render_options {precision (or decimals), suffix}`; `bytes` reads a
+     * number as a size (`1.2 KB`); `badge` draws a pill whose tone is
+     * `render_options.map[value]` (else `render_options.default`);
+     * `sparkline` draws a number array as a line (`render_options {width,
+     * height}`); `heading_glyph` an arrow turned by degrees from north.
+     */
+    render: z.string().optional(),
+    render_options: z.record(z.string(), z.unknown()).optional(),
+    align: z.enum(["left", "right", "center"]).optional(),
+    /** Open: `titlecase`, `truncate:N`, `date_format:PATTERN`, or a pipeline of them. */
+    transform: z.union([z.string(), z.array(z.string())]).optional(),
+    color: ColumnColorSchema.optional(),
+    bg: ColumnColorSchema.optional(),
+    /**
+     * `true`: the field is not a column (0.5.2). It stays in the schema, the
+     * rows (so a cell reads it from `CellProps.row`), the filter builder and
+     * search; `describe` leaves the column out of `view.columns`, so no
+     * renderer shows it and it is not a cards' default title. Listing a field
+     * as hidden also keeps `describe` from adding its default column. Not to be
+     * confused with a row scope's hidden fields, which leave the schema too.
+     */
+    hidden: z.boolean().optional(),
+  })
+  .superRefine((c, ctx) => {
+    // `grow` and `min_width` size a fill column; on a fixed width they would be silently ignored.
+    if (c.width === COLUMN_WIDTH_FILL) return;
+    for (const key of ["grow", "min_width"] as const) {
+      if (c[key] === undefined) continue;
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: `${key} sizes a column with width: fill; column ${c.id ?? c.field} has ${
+          c.width === undefined ? "no width" : `width: ${c.width}`
+        }`,
+      });
+    }
+  });
 
 export type ColumnConfig = z.infer<typeof ColumnConfigSchema>;
+
+/** Whether a column takes the rest of the table's width (`width: fill`, 0.5.2). */
+export function isFillColumn(column: Pick<ColumnConfig, "width">): boolean {
+  return column.width === COLUMN_WIDTH_FILL;
+}
 
 export const COLUMNS_MODES = ["all", "listed"] as const;
 export const ColumnsModeSchema = z.enum(COLUMNS_MODES);
