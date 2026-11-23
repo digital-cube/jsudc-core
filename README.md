@@ -83,20 +83,20 @@ try {
 server can dispatch generically and a client is typed per action
 (`ActionRequest<"list">`, `ActionResponse<"list">`).
 
-| Action                     | Request                                                                              | Answer                                                            |
-| -------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| `collections`              | `{}`                                                                                 | `{ collections }`, what the server serves                         |
-| `describe`                 | `{ collection }`                                                                     | schema, view config, capabilities, filterable fields, source info |
-| `list`                     | `{ collection, filter?, sort?, page?, search? }`                                     | `{ rows, next_cursor, total }`                                    |
-| `read`                     | `{ collection, id }`                                                                 | `{ row }`                                                         |
-| `mutate`                   | `{ collection, op: "insert" \| "update" \| "delete", id?, row?, expected_version? }` | `{ row }`                                                         |
-| `schema.add_field`         | `{ collection, name, fielddef, position }`                                           | `{ schema }`                                                      |
-| `schema.update_field`      | `{ collection, name, fielddef }`                                                     | `{ schema }`                                                      |
-| `schema.soft_delete_field` | `{ collection, field }`                                                              | `{ schema }`                                                      |
-| `reindex`                  | `{ collection, scope, order_field?, gap? }`                                          | `{ updated }`                                                     |
-| `tree.reparent`            | `{ collection, id, parent, order, fields, expected_version? }`                       | `{ row, updated }`                                                |
-| `source.read`              | `{ collection }`                                                                     | the source file as written                                        |
-| `mutate_many`              | `{ collection, op: "update" \| "delete", ids? \| filter?, except_ids?, row? }`       | `{ updated, failed }`                                             |
+| Action                     | Request                                                                              | Answer                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `collections`              | `{}`                                                                                 | `{ collections }`, what the server serves                                      |
+| `describe`                 | `{ collection }`                                                                     | schema, view config, capabilities, filterable and sortable fields, source info |
+| `list`                     | `{ collection, filter?, sort?, page?, search? }`                                     | `{ rows, next_cursor, total }`                                                 |
+| `read`                     | `{ collection, id }`                                                                 | `{ row }`                                                                      |
+| `mutate`                   | `{ collection, op: "insert" \| "update" \| "delete", id?, row?, expected_version? }` | `{ row }`                                                                      |
+| `schema.add_field`         | `{ collection, name, fielddef, position }`                                           | `{ schema }`                                                                   |
+| `schema.update_field`      | `{ collection, name, fielddef }`                                                     | `{ schema }`                                                                   |
+| `schema.soft_delete_field` | `{ collection, field }`                                                              | `{ schema }`                                                                   |
+| `reindex`                  | `{ collection, scope, order_field?, gap? }`                                          | `{ updated }`                                                                  |
+| `tree.reparent`            | `{ collection, id, parent, order, fields, expected_version? }`                       | `{ row, updated }`                                                             |
+| `source.read`              | `{ collection }`                                                                     | the source file as written                                                     |
+| `mutate_many`              | `{ collection, op: "update" \| "delete", ids? \| filter?, except_ids?, row? }`       | `{ updated, failed }`                                                          |
 
 A row is flat: `{ __meta: { id, version }, ...fields }`. `update` and `delete`
 take `expected_version`; a stale one fails with `version_conflict`. Paging is
@@ -387,6 +387,19 @@ the source is typed it steps aside, so the rows come best match first.
 # collections/messages/view.yaml
 default_sort:
   - { field: received_at, dir: desc }
+```
+
+**Sortable fields** (0.5.2): `describe.sortable.fields` lists the fields the
+source sorts on; a `list` whose `sort` names any other is refused with
+`validation_error`. Absent (an older server), every field sorts.
+`sortableField(describe, field)` reads it. A view can also take the sort button
+off a column the source does sort, with `sortable: false` on its column config;
+that is display only, the server does not read it:
+
+```yaml
+# collections/mail_messages/view.yaml
+columns:
+  - { field: snippet, sortable: false } # the source sorts on it, the header does not offer it
 ```
 
 `source.yaml` names one of six kinds (`SOURCE_KINDS`), each with its options

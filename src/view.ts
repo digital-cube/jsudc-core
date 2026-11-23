@@ -101,6 +101,12 @@ export const ColumnConfigSchema = z
      * confused with a row scope's hidden fields, which leave the schema too.
      */
     hidden: z.boolean().optional(),
+    /**
+     * `false`: the column's header is not a sort button, even when the source
+     * sorts on the field (0.5.2). It cannot make a field sortable that the
+     * source does not sort (`describe.sortable`); the server does not read it.
+     */
+    sortable: z.boolean().optional(),
   })
   .superRefine((c, ctx) => {
     // `grow` and `min_width` size a fill column; on a fixed width they would be silently ignored.

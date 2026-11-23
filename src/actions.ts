@@ -131,6 +131,27 @@ export const SourceInfoSchema = z.looseObject({
 
 export type SourceInfo = z.infer<typeof SourceInfoSchema>;
 
+/**
+ * The fields a client may sort the collection by (0.5.2): the source sorts on
+ * these and refuses any other in `ListRequest.sort` with `validation_error`.
+ * Absent (a server before 0.5.2): every live field.
+ */
+export const SortableSchema = z.object({ fields: z.array(z.string().min(1)) });
+
+export type Sortable = z.infer<typeof SortableSchema>;
+
+/**
+ * Whether `describe` lets a client sort by `field`: listed in `sortable`, or
+ * `sortable` absent (a server that does not say). It does not look at the
+ * schema; a renderer also leaves out what it cannot order (a `json` field).
+ */
+export function sortableField(
+  describe: { sortable?: { fields: readonly string[] } | undefined },
+  field: string,
+): boolean {
+  return describe.sortable === undefined || describe.sortable.fields.includes(field);
+}
+
 export const DescribeResponseSchema = z.object({
   collection: z.string().min(1),
   capabilities: CapabilitiesSchema,
@@ -142,6 +163,8 @@ export const DescribeResponseSchema = z.object({
   schema: SchemaDocSchema,
   view: ViewConfigSchema,
   filterable: z.object({ fields: z.array(FilterableFieldSchema) }),
+  /** The fields the source sorts on (0.5.2); absent: every field. */
+  sortable: SortableSchema.optional(),
 });
 
 export type DescribeResponse = z.infer<typeof DescribeResponseSchema>;
