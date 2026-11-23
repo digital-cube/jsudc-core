@@ -30,6 +30,7 @@ const boards = schemaOf({ name: { type: "string" }, key: { type: "string" } });
 const org = schemaOf({
   name: { type: "string" },
   title: { type: "string" },
+  color: { type: "string" },
   gone: { type: "string", deleted: true },
 });
 const targets: Record<string, SchemaDoc> = { boards, org };
@@ -82,6 +83,14 @@ describe("LookupDef in FieldDefSchema", () => {
   it("leaves a relation in the flat form (level 2)", () => {
     const def = FieldDefSchema.parse({ type: "relation", ref: "boards", label_field: "name" });
     expect(def).toEqual({ type: "relation", ref: "boards", label_field: "name" });
+  });
+
+  it("parses color_field and refuses one that is no field name", () => {
+    const lookup = { collection: "mail_labels", label_field: "name", color_field: "color" };
+    expect(FieldDefSchema.parse({ type: "lookup_array", lookup }).lookup).toEqual(lookup);
+    expect(
+      FieldDefSchema.safeParse({ type: "lookup", lookup: { ...lookup, color_field: "" } }).success,
+    ).toBe(false);
   });
 
   it("refuses a lookup block on another type and a bad block", () => {
@@ -193,6 +202,7 @@ describe("lookupProblems", () => {
           collection: "org",
           label_field: "name",
           extra_fields: ["title"],
+          color_field: "color",
           key_field: "id",
         },
       },
@@ -212,6 +222,7 @@ describe("lookupProblems", () => {
           label_field: "label",
           key_field: "code",
           extra_fields: ["title", "gone"],
+          color_field: "hue",
         },
       },
       c: { type: "lookup", ref: "Books.Genre" },
@@ -221,6 +232,7 @@ describe("lookupProblems", () => {
       "tickets.b: lookup target org has no field label",
       "tickets.b: lookup target org has no field code",
       "tickets.b: lookup target org has no field gone",
+      "tickets.b: lookup target org has no field hue",
       "tickets.c: a lookup field needs lookup: {collection, label_field}",
     ]);
     expect(lookupFieldProblems("t", "x", { type: "string" }, lookupTarget)).toEqual([]);

@@ -17,7 +17,7 @@ in Angular alike.
 ```sh
 npm install @jsudc/core
 # or straight from a GitHub tag:
-npm install github:digital-cube/jsudc-core#v0.7.0
+npm install github:digital-cube/jsudc-core#v0.8.0
 ```
 
 Two entry points:
@@ -455,7 +455,10 @@ A field of type `lookup` stores the **key** of a row of another collection,
                "lookup": { "collection": "org", "label_field": "name", "extra_fields": ["title"] } }
 ```
 
-`LookupDefSchema` is `{ collection, key_field?, label_field, extra_fields? }`.
+`LookupDefSchema` is `{ collection, key_field?, label_field, extra_fields?,
+color_field? }`. `color_field` (0.8.0) is a field of the target whose value colours the
+key's chip: a named palette value (a tone such as `danger`, or a name the host's
+theme maps, such as `red`), never a raw colour.
 Without `key_field` the key is the target's row id (`__meta.id`). A key is a
 string or an integer; `validateRow` refuses anything else. The flat udc-py
 spelling (`"ref": "boards", "label_field": "name"`) parses too and comes out
@@ -470,8 +473,8 @@ client resolves the labels with one `list` over the target
 schema has no live `id` field, means the row id (`isRowIdField`), so a lookup by
 id needs no stored copy of it.
 
-Core checks the shape. Whether `collection`, `label_field`, `key_field` and
-`extra_fields` exist needs the other collection's schema, so the server checks
+Core checks the shape. Whether `collection`, `label_field`, `key_field`,
+`extra_fields` and `color_field` exist needs the other collection's schema, so the server checks
 that when it loads its registry: `lookupProblems(collection, schema, schemaOf)`
 returns one message per problem, `<collection>.<field>: lookup target <x> has no
 field <y>`.

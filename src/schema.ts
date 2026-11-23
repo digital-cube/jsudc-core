@@ -86,7 +86,10 @@ export function isStorableType(type: unknown): type is StorableFieldType {
  * Where a `lookup` / `lookup_array` field points. The field stores the value
  * of `key_field` of a row of `collection` (the row id, `__meta.id`, when
  * `key_field` is omitted); a client shows that row's `label_field`, and may
- * fetch `extra_fields` with it (a tooltip, a subtitle). The shape is checked
+ * fetch `extra_fields` with it (a tooltip, a subtitle). `color_field` names a
+ * field of the target whose value colours the row's chip: a named palette
+ * value (`accent`, `danger`, or a name the host's theme maps, e.g. `red`),
+ * never a raw colour, so each theme decides what it looks like. The shape is checked
  * here; that the names exist in the target is checked by the server when it
  * loads its registry (`lookupProblems`), the only place both schemas meet.
  */
@@ -95,6 +98,7 @@ export const LookupDefSchema = z.looseObject({
   key_field: FieldNameSchema.optional(),
   label_field: FieldNameSchema,
   extra_fields: z.array(FieldNameSchema).optional(),
+  color_field: FieldNameSchema.optional(),
 });
 
 export type LookupDef = z.infer<typeof LookupDefSchema>;

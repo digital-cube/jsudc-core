@@ -7,6 +7,22 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-23
+
+One addition, the colour of a lookup chip; released together with
+`@jsudc/server` 0.8.0 (several SQLite files, FTS5 search, checkpoint, other
+processes' writes on the change feed, `reindex` on `postgres_table`) and
+`@jsudc/react` 0.8.0 (which draws the coloured chip). Optional: a 0.7.0 schema
+parses exactly as before.
+
+### Added
+
+- `color_field` on `LookupDefSchema` (optional): a field of the lookup's target
+  whose value colours the chip of a key — a named palette value (a tone such as
+  `danger`, or a name the host's theme maps, such as `red`), never a raw colour.
+  `lookupProblems` / `lookupFieldProblems` report it like `extra_fields` when the
+  target's schema has no such live field. A schema without it parses as before.
+
 ## [0.7.0] - 2026-11-23
 
 The first SQLite set: a SQLite table as a collection kind and the error code a
@@ -227,7 +243,8 @@ First tagged version, installed from the GitHub tag.
 - `@jsudc/core/client`: `UdcClient`, the envelope RPC over `fetch`, and
   `UdcError`.
 
-[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/digital-cube/jsudc-core/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/digital-cube/jsudc-core/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/digital-cube/jsudc-core/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/digital-cube/jsudc-core/compare/v0.4.0...v0.5.0
