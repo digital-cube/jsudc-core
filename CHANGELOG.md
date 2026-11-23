@@ -7,18 +7,35 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-23
+
+The first SQLite set: a SQLite table as a collection kind and the error code a
+client sees when another writer holds the file; released together with
+`@jsudc/server` 0.7.0 (which also makes `pg` optional) and `@jsudc/react`
+0.7.0. Every addition is optional: a 0.6.0 payload or `source.yaml` parses
+exactly as before.
+
 ### Added
 
 - `sqlite_table` in `SOURCE_KINDS` (group `database`): one table of a SQLite
   file with typed columns. `SqliteTableOptionsSchema` is
   `PostgresTableOptionsSchema` plus `database`, the name of the handle the host
-  registered (default `DEFAULT_SQLITE_DATABASE`, `main`). `@jsudc/server`
-  serves it with `SqliteTableSource` from `@jsudc/server/sqlite`.
+  registered (default `DEFAULT_SQLITE_DATABASE`, `main`). Its options:
+  `database`, `table` (default the collection name), `id_column` (default
+  `id`), `id_type` (`uuid`, the default, `text` or `integer`; a `uuid` id is
+  stored as lower-case TEXT), `version_column` (optional; without it every row
+  is version 1), `columns` (field → column) and `total_count` (default
+  `true`). The file's path is never in `source.yaml`: the host opens the file
+  and registers the handle. `@jsudc/server` serves it with
+  `SqliteTableSource` from `@jsudc/server/sqlite`.
 - The error code `busy` (and the guard `isBusy`): the data was locked by another
-  writer for longer than the server waits, e.g. another process holding a SQLite
-  file's write lock past its busy timeout. Nothing was written; the request may
-  be retried. A client older than this code reads such a reply as a malformed
-  error payload (`internal`).
+  writer for longer than the server waits (`@jsudc/server`: 5 s by default),
+  e.g. another process holding a SQLite file's write lock past its busy
+  timeout. Nothing was written; the request may be retried. A client sees it as the error payload of any write (`create`,
+  `update`, `delete`, `mutate_many`, `reindex`, a host action that writes) and,
+  rarely, of a read that had to wait for a lock; `UdcClient` throws it as a
+  `UdcError` whose `code` is `busy`. A client older than this code reads such a
+  reply as a malformed error payload (`internal`).
 
 ## [0.6.0] - 2026-11-23
 
@@ -210,7 +227,9 @@ First tagged version, installed from the GitHub tag.
 - `@jsudc/core/client`: `UdcClient`, the envelope RPC over `fetch`, and
   `UdcError`.
 
-[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/digital-cube/jsudc-core/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/digital-cube/jsudc-core/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/digital-cube/jsudc-core/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/digital-cube/jsudc-core/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/digital-cube/jsudc-core/compare/v0.2.0...v0.3.0

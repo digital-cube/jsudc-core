@@ -17,7 +17,7 @@ in Angular alike.
 ```sh
 npm install @jsudc/core
 # or straight from a GitHub tag:
-npm install github:digital-cube/jsudc-core#v0.6.0
+npm install github:digital-cube/jsudc-core#v0.7.0
 ```
 
 Two entry points:
@@ -39,8 +39,8 @@ body. The answer is an envelope whose `kind` says how it went:
 
 `requestKind`, `okKind`, `errKind` and `parseKind` build and split the kinds.
 An error payload carries one of a closed set of codes (`not_found`,
-`validation_error`, `version_conflict`, `forbidden`, `unsupported_op`, `busy`,
-`internal`); `UdcError` is the matching exception, with `toPayload()` and
+`validation_error`, `version_conflict`, `forbidden`, `unsupported_op`, `busy`
+(0.7.0), `internal`); `UdcError` is the matching exception, with `toPayload()` and
 `UdcError.fromPayload()` to cross the wire, and `isUdcError` /
 `isVersionConflict` / `isBusy` as guards. `busy` means the data was locked by
 another writer for longer than the server waits (a SQLite file another process
@@ -408,7 +408,7 @@ columns:
 schema: `postgres_jsonb` (one table, every field in `data jsonb`), `memory`,
 `filesystem`, `http_api`, `yaml_menu`, `postgres_table` (an ordinary
 relational table with typed columns) and `sqlite_table` (the same, in a SQLite
-file). `sourceGroup(kind)` puts each in the sidebar's `database`, `files` or
+file; 0.7.0). `sourceGroup(kind)` puts each in the sidebar's `database`, `files` or
 `internet` group; `postgres_table` and `sqlite_table` are `database`. Without a file a collection is `postgres_jsonb`.
 
 `PostgresTableOptionsSchema`, the `postgres_table` block. Only identifiers
