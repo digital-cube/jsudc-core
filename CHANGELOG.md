@@ -9,6 +9,12 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ### Added
 
+- `hidden: true` on a column config (`ColumnConfigSchema`): the field is not a
+  table column, and `describe` adds no default column for it; it stays in the
+  schema, the rows, the filter builder and search.
+- `columns_mode` on a view (`ColumnsModeSchema`, `COLUMNS_MODES`): `all` (the
+  behaviour so far, and the default) or `listed`, a table of the view's
+  `columns` only.
 - `default_sort` in `ViewConfigSchema`: the order a view's rows come in until
   the user picks one, a list of `SortKey`s. Optional; a view without it parses
   exactly as before. `@jsudc/react` applies it (see its changelog).
