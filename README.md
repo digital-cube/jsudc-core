@@ -39,10 +39,12 @@ body. The answer is an envelope whose `kind` says how it went:
 
 `requestKind`, `okKind`, `errKind` and `parseKind` build and split the kinds.
 An error payload carries one of a closed set of codes (`not_found`,
-`validation_error`, `version_conflict`, `forbidden`, `unsupported_op`,
+`validation_error`, `version_conflict`, `forbidden`, `unsupported_op`, `busy`,
 `internal`); `UdcError` is the matching exception, with `toPayload()` and
 `UdcError.fromPayload()` to cross the wire, and `isUdcError` /
-`isVersionConflict` as guards.
+`isVersionConflict` / `isBusy` as guards. `busy` means the data was locked by
+another writer for longer than the server waits (a SQLite file another process
+is writing): nothing was written, and the same request may be retried later.
 
 "Not signed in" is not a code of its own: it is `forbidden` with
 `details.reason: "unauthenticated"`, so a client that predates it still parses
@@ -402,12 +404,12 @@ columns:
   - { field: snippet, sortable: false } # the source sorts on it, the header does not offer it
 ```
 
-`source.yaml` names one of six kinds (`SOURCE_KINDS`), each with its options
+`source.yaml` names one of seven kinds (`SOURCE_KINDS`), each with its options
 schema: `postgres_jsonb` (one table, every field in `data jsonb`), `memory`,
-`filesystem`, `http_api`, `yaml_menu`, and `postgres_table` (an ordinary
-relational table with typed columns). `sourceGroup(kind)` puts each in the
-sidebar's `database`, `files` or `internet` group; `postgres_table` is
-`database`. Without a file a collection is `postgres_jsonb`.
+`filesystem`, `http_api`, `yaml_menu`, `postgres_table` (an ordinary
+relational table with typed columns) and `sqlite_table` (the same, in a SQLite
+file). `sourceGroup(kind)` puts each in the sidebar's `database`, `files` or
+`internet` group; `postgres_table` and `sqlite_table` are `database`. Without a file a collection is `postgres_jsonb`.
 
 `PostgresTableOptionsSchema`, the `postgres_table` block. Only identifiers
 (lowercase snake_case, the table-name rule) go in the file; SQL expressions, a
@@ -425,6 +427,20 @@ options:
   columns: # field -> column; a field without an entry reads its own name
     subject: subject_line
   total_count: false # default true; false: no count(*), total is null
+```
+
+`SqliteTableOptionsSchema`, the `sqlite_table` block: the same options, plus
+`database`, the name under which the host registered the SQLite file's handle
+with `@jsudc/server` (default `main`). The file's path is never in
+`source.yaml`; the host opens it.
+
+```yaml
+# collections/notes/source.yaml
+kind: sqlite_table
+options:
+  database: vault # a handle the host registered; default: main
+  table: note
+  version_column: version
 ```
 
 ## Lookups and drill-down

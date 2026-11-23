@@ -47,6 +47,7 @@ export const ERROR_CODES = [
   "version_conflict",
   "forbidden",
   "unsupported_op",
+  "busy",
   "internal",
 ] as const;
 
@@ -91,6 +92,17 @@ export function isUdcError(err: unknown): err is UdcError {
 
 export function isVersionConflict(err: unknown): err is UdcError {
   return err instanceof UdcError && err.code === "version_conflict";
+}
+
+/**
+ * `busy`: the data is locked by another writer (another process holding the
+ * SQLite file's write lock, for instance) for longer than the server waits.
+ * Nothing was written; the same request may succeed when retried later.
+ * `details` names the `database` and the milliseconds `waited_ms`. A client
+ * older than this code reads the reply as a malformed error (`internal`).
+ */
+export function isBusy(err: unknown): err is UdcError {
+  return err instanceof UdcError && err.code === "busy";
 }
 
 /**
