@@ -7,6 +7,14 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `color_field` on `LookupDefSchema` (optional): a field of the lookup's target
+  whose value colours the chip of a key — a named palette value (a tone such as
+  `danger`, or a name the host's theme maps, such as `red`), never a raw colour.
+  `lookupProblems` / `lookupFieldProblems` report it like `extra_fields` when the
+  target's schema has no such live field. A schema without it parses as before.
+
 ## [0.7.0] - 2026-11-23
 
 The first SQLite set: a SQLite table as a collection kind and the error code a
