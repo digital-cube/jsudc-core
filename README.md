@@ -359,6 +359,22 @@ columns:
   - { field: folder_id, hidden: true } # with columns_mode: all, the per-field way
 ```
 
+A column's **width** is pixels, or `fill` (0.5.2): a `fill` column takes what
+the table's pane has left after the fixed columns, never less than its
+`min_width` (default: the view's `default_column_width`), and several share
+it by `grow` (default 1); `grow` and `min_width` on a fixed column fail at
+load. `hide_below: N` leaves a column out while the table's own width (its
+pane, not the window) is under N px, so a narrow pane drops columns instead of
+scrolling sideways. `@jsudc/react` lays the table out to its pane:
+
+```yaml
+# collections/mail_messages/view.yaml
+columns:
+  - { field: from, width: 210, hide_below: 560 }
+  - { field: subject, width: fill, min_width: 240 } # the rest of the pane
+  - { field: date, width: 84, align: right }
+```
+
 A view's **default sort** (0.5.2) is the order its rows come in until the user
 picks one: `default_sort`, a list of sort keys (`dir` defaults to `asc`).
 `@jsudc/react` sends it as the list's `sort` while the URL state has none,
