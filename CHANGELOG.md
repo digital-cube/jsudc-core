@@ -9,6 +9,14 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ### Added
 
+- `sortable` in `DescribeResponseSchema` (`SortableSchema`, `{ fields }`): the
+  fields the source sorts on; any other in `ListRequest.sort` is refused with
+  `validation_error`. Optional: absent (an older server), every field sorts.
+  `sortableField(describe, field)` reads it. `@jsudc/server` fills it,
+  `@jsudc/react` draws a plain header for a field not in it.
+- `sortable: false` on a column config (`ColumnConfigSchema`): the header is not
+  a sort button even when the source sorts on the field. Display only.
+
 - `hidden: true` on a column config (`ColumnConfigSchema`): the field is not a
   table column, and `describe` adds no default column for it; it stays in the
   schema, the rows, the filter builder and search.

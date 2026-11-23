@@ -75,6 +75,12 @@ export const ColumnConfigSchema = z.looseObject({
    * confused with a row scope's hidden fields, which leave the schema too.
    */
   hidden: z.boolean().optional(),
+  /**
+   * `false`: the column's header is not a sort button, even when the source
+   * sorts on the field (0.5.2). It cannot make a field sortable that the
+   * source does not sort (`describe.sortable`); the server does not read it.
+   */
+  sortable: z.boolean().optional(),
 });
 
 export type ColumnConfig = z.infer<typeof ColumnConfigSchema>;
