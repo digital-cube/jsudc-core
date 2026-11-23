@@ -15,6 +15,12 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 - `columns_mode` on a view (`ColumnsModeSchema`, `COLUMNS_MODES`): `all` (the
   behaviour so far, and the default) or `listed`, a table of the view's
   `columns` only.
+- A column `width` of `fill` (`COLUMN_WIDTH_FILL`, `isFillColumn`): the column
+  takes the rest of the table's width; `grow` (its share against other `fill`
+  columns) and `min_width` (its floor) size it, and are refused on a column
+  that does not fill. `hide_below` on any column: left out while the table is
+  narrower than that many pixels. A numeric `width` parses exactly as before;
+  `@jsudc/react` lays them out (see its changelog).
 - `default_sort` in `ViewConfigSchema`: the order a view's rows come in until
   the user picks one, a list of `SortKey`s. Optional; a view without it parses
   exactly as before. `@jsudc/react` applies it (see its changelog).
