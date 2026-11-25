@@ -7,6 +7,14 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-25
+
+One addition, the `hover` display of the row actions; released together with
+`@jsudc/react` 0.8.1, which draws it. `@jsudc/server` is not released: 0.9.0
+keeps its `@jsudc/core` range `^0.8.0`, which takes 0.8.1, so a host on server
+0.9.0 updates core and react alone. Opt-in: a 0.8.0 view parses and draws as
+before.
+
 ### Added
 
 - `row_actions_display: hover` on `ViewConfigSchema` (the enum is now
@@ -260,7 +268,8 @@ First tagged version, installed from the GitHub tag.
 - `@jsudc/core/client`: `UdcClient`, the envelope RPC over `fetch`, and
   `UdcError`.
 
-[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/digital-cube/jsudc-core/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/digital-cube/jsudc-core/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/digital-cube/jsudc-core/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/digital-cube/jsudc-core/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/digital-cube/jsudc-core/compare/v0.5.0...v0.6.0
