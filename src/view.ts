@@ -279,6 +279,13 @@ export const ActionDefSchema = z.looseObject({
    * `delete`, off for every other kind (`actionConfirms`).
    */
   confirm: z.union([z.boolean(), z.string().min(1)]).optional(),
+  /**
+   * Where a row action goes in the `hover` display (`row_actions_display`):
+   * `bar` (the default) puts it in the bar of icon buttons while it has an
+   * icon and the bar has room, `menu` always in the ⋮ dropdown at its end.
+   * The `inline` and `menu` displays and `bulk_actions` ignore it.
+   */
+  placement: z.enum(["bar", "menu"]).optional(),
 });
 
 export type ActionDef = z.infer<typeof ActionDefSchema>;
@@ -336,7 +343,19 @@ export const ViewConfigSchema = z
     row_action_defs: z.array(ActionDefSchema).optional(),
     bulk_actions: z.array(ActionDefSchema).optional(),
     multiselect: z.boolean().optional(),
-    row_actions_display: z.enum(["inline", "menu"]).optional(),
+    /**
+     * How a table draws the row actions: `menu` (a ⋮ button in a trailing
+     * column), `inline` (icon buttons in a trailing column of their own) or
+     * `hover` (a bar of icon buttons over the row's trailing cells while the
+     * row is hovered or focused; no column of its own). `hover` needs this
+     * core version on the server and in the client: an older core refuses it.
+     */
+    row_actions_display: z.enum(["inline", "menu", "hover"]).optional(),
+    /**
+     * The most buttons the `hover` bar shows (the renderer's default: 4); the
+     * eligible actions past it go to the ⋮ dropdown at the bar's end.
+     */
+    row_actions_max: z.number().int().positive().optional(),
     edit_mode: EditModeConfigSchema.optional(),
     preview: PreviewConfigSchema.optional(),
     /**
