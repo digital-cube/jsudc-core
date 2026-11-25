@@ -312,6 +312,52 @@ isActionEligibleForAll(archive, selectedRows); // false as soon as one row is ar
 actionConfirms(archive); // false; a "delete" action would ask
 ```
 
+How a table draws a view's row actions is the view's `row_actions_display`:
+`menu` (a ⋮ button in a trailing column), `inline` (icon buttons in a trailing
+column of their own) or `hover` (a compact bar of icon buttons that appears
+over the row's trailing cells while the pointer is over the row or focus is
+in it, and takes no column of its own: the mail-list pattern). Two keys go
+with `hover`, and every other display ignores them:
+
+- `row_actions_max` on the view (a positive integer): the most buttons the bar
+  shows. The renderer's default is 4.
+- `placement` on a row `ActionDef`: `bar` (the default when absent) or `menu`.
+  A `menu` action always goes to the ⋮ dropdown at the end of the bar, as does
+  an action without an icon and every eligible action past `row_actions_max`.
+  `bulk_actions` ignore it. (The preview's `placement`, `modal` /
+  `right_drawer`, is a different key and unchanged.)
+
+```yaml
+row_actions_display: hover
+row_actions_max: 3
+row_action_defs:
+  - kind: archive
+    label: Archive
+    icon: archive
+  - kind: delete
+    label: Delete
+  - kind: mark_read
+    label: Mark read
+    icon: mail-open
+    when: { field: read, op: eq, value: false }
+  - kind: mark_unread
+    label: Mark unread
+    icon: mail
+    when: { field: read, op: eq, value: true }
+  - kind: move
+    label: Move to…
+    icon: folder-input
+    placement: menu
+```
+
+**`hover` needs this core version on both sides.** Up to 0.8.0
+`row_actions_display` is a strict `inline | menu` enum on the server (the
+registry reads `view.yaml` through `ViewConfigSchema`) and in the client (it
+parses the `describe` answer with it), so an older `@jsudc/core` refuses a view
+that says `hover` at load: there is no fallback to `menu`. Upgrade the server
+and the client before a view uses it. `row_actions_max` and `placement` pass an
+older core untouched (both objects are loose) and are simply not read there.
+
 ## Filter DSL
 
 A filter is a condition `{ field, op, value?, case_insensitive? }` or a group

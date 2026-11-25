@@ -7,6 +7,23 @@ All notable changes to `@jsudc/core` are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `row_actions_display: hover` on `ViewConfigSchema` (the enum is now
+  `inline | menu | hover`): a table draws the row actions as a bar of icon
+  buttons over the row's trailing cells while the row is hovered or focused,
+  with no column of its own (`@jsudc/react` draws it). **A view may say `hover`
+  only once the server and the client run this core**: an older core's strict
+  enum refuses the view at load, with no fallback.
+- `row_actions_max` on `ViewConfigSchema` (optional positive integer): the most
+  buttons the `hover` bar shows; the renderer's default is 4.
+- `placement` on `ActionDefSchema` (optional, `bar | menu`, absent means `bar`):
+  a row action with `placement: menu` goes to the `hover` bar's ⋮ dropdown. Read
+  for row actions in the `hover` display only; `inline`, `menu` and
+  `bulk_actions` ignore it. `PreviewConfigSchema.placement` is unchanged.
+- A 0.8.0 view parses to the same output as before; `row_actions_max` and
+  `placement` pass an older core untouched (both objects are loose).
+
 ## [0.8.0] - 2026-11-23
 
 One addition, the colour of a lookup chip; released together with
